@@ -52,8 +52,10 @@ export default function DominanceView() {
         const poly = markets.filter(m => m.platform === 'polymarket')
         const kalshi = markets.filter(m => m.platform === 'kalshi')
 
-        const polyVol = poly.reduce((s, m) => s + (m.volume || 0), 0)
-        const kalshiVol = kalshi.reduce((s, m) => s + (m.volume || 0), 0)
+        // Use platform totals from API (computed from ALL markets, not just the limited set)
+        const pt = json.meta?.platformTotals
+        const polyVol = pt?.polymarket?.volume ?? poly.reduce((s, m) => s + (m.volume || 0), 0)
+        const kalshiVol = pt?.kalshi?.volume ?? kalshi.reduce((s, m) => s + (m.volume || 0), 0)
 
         // Volume by category
         const catMap = {}
@@ -74,7 +76,8 @@ export default function DominanceView() {
 
         setData({
           polyVol, kalshiVol,
-          polyCount: poly.length, kalshiCount: kalshi.length,
+          polyCount: pt?.polymarket?.count ?? poly.length,
+          kalshiCount: pt?.kalshi?.count ?? kalshi.length,
           byCategory, topPoly, topKalshi,
         })
       } catch {}
@@ -134,6 +137,9 @@ export default function DominanceView() {
             ? `Polymarket holds ${polyPct}% of total volume while Kalshi captures ${kalshiPct}%. The gap is narrowing — compare prices across both for the best edge.`
             : `Volume is relatively balanced — Polymarket at ${polyPct}% and Kalshi at ${kalshiPct}%. This competition benefits traders with more arbitrage opportunities.`
           }
+        </p>
+        <p className="dominance-note">
+          Note: Polymarket reports volume in USD traded. Kalshi reports volume in contracts traded (each worth up to $1). These units differ, so the comparison is approximate.
         </p>
       </div>
 

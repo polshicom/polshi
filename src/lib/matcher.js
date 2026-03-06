@@ -37,6 +37,7 @@ const DATE_WINDOWS = {
   sports_transfer:     31,
   election:            14,
   nomination:          14,
+  vp_nomination:       14,
   primary:             14,
   impeachment:         31,
   resignation:         31,

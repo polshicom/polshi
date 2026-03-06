@@ -217,6 +217,9 @@ function extractPrimaryEntity(text, allEntities) {
 // ── Topic Detection ──────────────────────────────────
 
 const TOPIC_RULES = [
+  { pattern: /\b(vice\s+president\w*)\b.*\b(nominat\w*|nominee)\b/i, topic: 'vp_nomination' },
+  { pattern: /\b(nominat\w*|nominee)\b.*\b(vice\s+president\w*)\b/i, topic: 'vp_nomination' },
+  { pattern: /\bvp\s+(nominat\w*|nominee)\b/i, topic: 'vp_nomination' },
   { pattern: /\b(nominat\w*|nominee)\b/i, topic: 'nomination' },
   { pattern: /\b(primary|caucus)\b/i, topic: 'primary' },
   { pattern: /\b(president\w*|election|elected|electoral)\b.*\b(win|won|victory)\b/i, topic: 'election' },

@@ -65,6 +65,21 @@ export async function GET(request) {
       cacheSet(CACHE_KEY, markets, 30_000)
     }
 
+    // Compute platform-level totals from ALL markets before filtering/limiting.
+    // This ensures the dominance view gets accurate numbers.
+    const allPoly = markets.filter(m => m.platform === 'polymarket')
+    const allKalshi = markets.filter(m => m.platform === 'kalshi')
+    const platformTotals = {
+      polymarket: {
+        count: allPoly.length,
+        volume: allPoly.reduce((s, m) => s + (m.volume || 0), 0),
+      },
+      kalshi: {
+        count: allKalshi.length,
+        volume: allKalshi.reduce((s, m) => s + (m.volume || 0), 0),
+      },
+    }
+
     let filtered = markets
 
     if (platform !== 'all') {
@@ -102,6 +117,7 @@ export async function GET(request) {
         total: filtered.length,
         returned: result.length,
         categories,
+        platformTotals,
         lastUpdated: new Date().toISOString(),
       },
     })

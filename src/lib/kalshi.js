@@ -76,6 +76,16 @@ export async function fetchKalshiMarkets() {
 
         if (!question) continue
 
+        // Detect VP (Vice Presidential) tickers — Kalshi uses KXVPRESNOM* for VP
+        // but the event title misleadingly says "presidential nomination".
+        // Fix the question text so fingerprinting can distinguish them.
+        const rawTickerFull = mkt.ticker || ''
+        if (/^KXVPRESNOM/i.test(rawTickerFull) || /^KXVPRESNOM/i.test(eventTicker)) {
+          question = question
+            .replace(/\bpresidential\b/gi, 'vice presidential')
+            .replace(/\bPresidential\b/g, 'Vice Presidential')
+        }
+
         // Kalshi URLs use the base event ticker (strip numeric/candidate suffixes)
         // e.g. KXPRESNOMD-28-MK → kxpresnomd, KXELONMARS-99 → kxelonmars
         const rawTicker = eventTicker || mkt.ticker || ''

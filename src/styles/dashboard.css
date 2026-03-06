@@ -822,6 +822,18 @@ html[data-theme="dark"] .glass-signup {
   text-align: center;
 }
 
+.dominance-note {
+  margin-top: 8px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--color-text-quaternary, #999);
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+  font-style: italic;
+}
+
 .dominance-tops {
   display: grid;
   grid-template-columns: 1fr 1fr;
