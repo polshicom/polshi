@@ -69,15 +69,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             .eq('status', 'active')
             .single()
 
-          token.plan = sub?.plan || 'pro'
+          token.plan = sub?.plan || 'free'
           token.isPro = token.plan === 'pro'
         } catch {
-          token.plan = token.plan || 'pro'
-          token.isPro = true
+          token.plan = token.plan || 'free'
+          token.isPro = token.plan === 'pro'
         }
       } else {
-        token.plan = 'pro'
-        token.isPro = true
+        token.plan = token.plan || 'free'
+        token.isPro = token.plan === 'pro'
       }
 
       return token

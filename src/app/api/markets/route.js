@@ -18,7 +18,7 @@ export async function GET(request) {
 
   // Check auth for tier gating (defense-in-depth)
   const session = await auth()
-  const isPro = true // TODO: revert for production
+  const isPro = session?.user?.isPro || false
 
   try {
     let markets = cacheGet(CACHE_KEY)
