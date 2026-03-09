@@ -1397,6 +1397,46 @@ html[data-theme="dark"] .dominance-secondary {
   font-size: 14px;
 }
 
+/* ── Loading Skeleton ────────────────────────── */
+
+.mt-skeleton-row {
+  pointer-events: none;
+}
+
+.mt-skeleton {
+  border-radius: 4px;
+  background: var(--color-bg-translucent);
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.mt-skeleton-text {
+  width: 70%;
+  height: 14px;
+}
+
+.mt-skeleton-num {
+  width: 36px;
+  height: 14px;
+}
+
+.mt-skeleton-badge {
+  width: 32px;
+  height: 18px;
+  border-radius: 9px;
+}
+
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.15; }
+}
+
+/* ── Refresh age label ───────────────────────── */
+
+.refresh-age {
+  color: var(--color-text-quaternary);
+  font-size: 12px;
+}
+
 .market-category {
   display: inline-block;
   padding: 2px 8px;

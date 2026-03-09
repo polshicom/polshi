@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Flame } from 'lucide-react'
 import UpgradeOverlay from './UpgradeOverlay'
 
@@ -49,6 +49,16 @@ function formatEndDate(dateStr) {
   return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
 }
 
+function formatTimeAgo(date) {
+  if (!date) return ''
+  const seconds = Math.round((Date.now() - date.getTime()) / 1000)
+  if (seconds < 5) return 'just now'
+  if (seconds < 60) return `${seconds}s ago`
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m ago`
+  return `${Math.floor(minutes / 60)}h ago`
+}
+
 // Enticing fake rows shown blurred to free users
 const FAKE_PREMIUM_ROWS = [
   {
@@ -88,13 +98,32 @@ const FAKE_PREMIUM_ROWS = [
   },
 ]
 
+// Skeleton row for loading state
+function SkeletonRow() {
+  return (
+    <div className="mt-row mt-skeleton-row">
+      <div className="mt-col-market"><div className="mt-skeleton mt-skeleton-text" /></div>
+      <div className="mt-col-price"><div className="mt-skeleton mt-skeleton-num" /></div>
+      <div className="mt-col-price"><div className="mt-skeleton mt-skeleton-num" /></div>
+      <div className="mt-col-num"><div className="mt-skeleton mt-skeleton-num" /></div>
+      <div className="mt-col-num"><div className="mt-skeleton mt-skeleton-num" /></div>
+      <div className="mt-col-ai"><div className="mt-skeleton mt-skeleton-badge" /></div>
+      <div className="mt-col-date"><div className="mt-skeleton mt-skeleton-num" /></div>
+      <div className="mt-col-vol"><div className="mt-skeleton mt-skeleton-num" /></div>
+      <div className="mt-col-profit"><div className="mt-skeleton mt-skeleton-num" /></div>
+    </div>
+  )
+}
+
 export default function MarketTable({ initialMarkets, isPro, refreshInterval }) {
   const [markets, setMarkets] = useState(initialMarkets || [])
+  const [loading, setLoading] = useState(!initialMarkets || initialMarkets.length === 0)
   const [search, setSearch] = useState('')
   const [aiFilter, setAiFilter] = useState('all')
   const [sortKey, setSortKey] = useState('difference')
   const [sortDir, setSortDir] = useState('desc')
-  const [lastUpdated, setLastUpdated] = useState(new Date())
+  const [lastUpdated, setLastUpdated] = useState(initialMarkets?.length > 0 ? new Date() : null)
+  const [lastUpdatedDisplay, setLastUpdatedDisplay] = useState('')
   const [countdown, setCountdown] = useState(refreshInterval || 60)
   const [refreshing, setRefreshing] = useState(false)
   const [communityVerified, setCommunityVerified] = useState(new Set())
@@ -103,6 +132,7 @@ export default function MarketTable({ initialMarkets, isPro, refreshInterval }) 
   const [bannerDismissed, setBannerDismissed] = useState(false)
   const [freeDismissed, setFreeDismissed] = useState(new Set())
   const [stake, setStake] = useState(1000)
+  const hasFetched = useRef(false)
 
   useEffect(() => {
     setCommunityVerified(loadSet(VERIFIED_KEY))
@@ -114,6 +144,16 @@ export default function MarketTable({ initialMarkets, isPro, refreshInterval }) 
     const count = markets.filter(m => m.edge > 0).length
     setArbCount(count)
   }, [markets])
+
+  // Update "last updated" display every second
+  useEffect(() => {
+    if (!lastUpdated) return
+    setLastUpdatedDisplay(formatTimeAgo(lastUpdated))
+    const tick = setInterval(() => {
+      setLastUpdatedDisplay(formatTimeAgo(lastUpdated))
+    }, 1000)
+    return () => clearInterval(tick)
+  }, [lastUpdated])
 
   const handleVerifyYes = useCallback((question) => {
     setCommunityVerified(prev => {
@@ -160,13 +200,26 @@ export default function MarketTable({ initialMarkets, isPro, refreshInterval }) 
       const data = await res.json()
       if (data.markets) {
         setMarkets(data.markets)
-        setLastUpdated(new Date())
+        // Use the server's cache timestamp if available
+        const serverTime = data.meta?.lastUpdated ? new Date(data.meta.lastUpdated) : new Date()
+        setLastUpdated(serverTime)
         setCountdown(refreshInterval || 60)
+        setLoading(false)
       }
-    } catch {}
+    } catch {
+      setLoading(false)
+    }
     if (manual) setRefreshing(false)
   }, [refreshInterval])
 
+  // Fetch on mount (page renders instantly, data loads client-side)
+  useEffect(() => {
+    if (hasFetched.current) return
+    hasFetched.current = true
+    fetchMarkets()
+  }, [fetchMarkets])
+
+  // Auto-refresh interval for pro users
   useEffect(() => {
     if (!isPro) return
     const interval = setInterval(fetchMarkets, (refreshInterval || 60) * 1000)
@@ -312,6 +365,9 @@ export default function MarketTable({ initialMarkets, isPro, refreshInterval }) 
             ? `Live · refreshes in ${formatInterval(countdown)}`
             : `Delayed · every ${formatInterval(refreshInterval)}`
           }
+          {lastUpdatedDisplay && (
+            <span className="refresh-age"> · Updated {lastUpdatedDisplay}</span>
+          )}
           <button
             className={`refresh-btn ${refreshing ? 'refreshing' : ''}`}
             onClick={() => fetchMarkets(true)}
@@ -361,9 +417,18 @@ export default function MarketTable({ initialMarkets, isPro, refreshInterval }) 
             </div>
           </div>
 
-          {/* Rows */}
+          {/* Body */}
           <div className="mt-body">
-            {visibleRows.map((m, i) => (
+            {loading && (
+              <>
+                <SkeletonRow />
+                <SkeletonRow />
+                <SkeletonRow />
+                <SkeletonRow />
+                <SkeletonRow />
+              </>
+            )}
+            {!loading && visibleRows.map((m, i) => (
               <MarketRow
                 key={i}
                 market={m}
@@ -374,7 +439,7 @@ export default function MarketTable({ initialMarkets, isPro, refreshInterval }) 
                 isLast={i === visibleRows.length - 1 && blurredRows.length === 0}
               />
             ))}
-            {blurredRows.map((m, i) => (
+            {!loading && blurredRows.map((m, i) => (
               <MarketRow
                 key={`blur-${i}`}
                 market={m}
@@ -383,13 +448,13 @@ export default function MarketTable({ initialMarkets, isPro, refreshInterval }) 
                 isLast={i === blurredRows.length - 1}
               />
             ))}
-            {filtered.length === 0 && (
+            {!loading && filtered.length === 0 && (
               <div className="mt-empty">No arbitrage opportunities found</div>
             )}
           </div>
         </div>
 
-        {showOverlay && <UpgradeOverlay count={filtered.length - FREE_LIMIT} />}
+        {!loading && showOverlay && <UpgradeOverlay count={filtered.length - FREE_LIMIT} />}
       </div>
 
       {!isPro && !bannerDismissed && arbCount > 0 && (

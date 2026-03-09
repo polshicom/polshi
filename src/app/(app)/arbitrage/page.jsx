@@ -11,18 +11,6 @@ export default async function ArbitragePage() {
   const plan = getPlan(session?.user?.plan || 'free')
   const isPro = session?.user?.isPro || false
 
-  let markets = []
-  try {
-    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
-    const res = await fetch(`${baseUrl}/api/markets?confidence=all&limit=100`, {
-      cache: 'no-store',
-    })
-    const data = await res.json()
-    markets = data.markets || []
-  } catch {
-    // Markets will be empty, client can retry
-  }
-
   return (
     <>
       <div className="dashboard-header">
@@ -41,7 +29,7 @@ export default async function ArbitragePage() {
       </div>
 
       <MarketTable
-        initialMarkets={markets}
+        initialMarkets={[]}
         isPro={isPro}
         refreshInterval={plan.refreshInterval}
       />
