@@ -21,7 +21,7 @@ export default function TopArbs() {
   return (
     <section className="top-arbs-section">
       <div className="top-arbs">
-        <h2 className="top-arbs-heading">Top Arbitrage Right Now</h2>
+        <h2 className="top-arbs-heading">Top Arb of the Day</h2>
 
         <div className="top-arbs-list">
           {arbs.map((arb, i) => (

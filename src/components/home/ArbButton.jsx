@@ -55,7 +55,7 @@ export default function ArbButton() {
         >
           <span className="arb-btn-dot" />
           <span className="arb-btn-label">
-            {formatUsd(stats.totalProfit)} in arb RIGHT NOW
+            {formatUsd(stats.totalProfit)} Top Arb of the Day
           </span>
           <span className="arb-btn-hover-label">View Scanner</span>
           <i className="arb-btn-chevron">

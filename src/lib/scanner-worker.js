@@ -14,7 +14,9 @@ import { aiVerifyMatches } from './ai-verify.js'
 import { sendDiscordAlert, formatMarketAlert } from './discord.js'
 
 const CACHE_KEY = 'matched_markets_v2'
+const TOP_ARB_KEY = 'top_arb_of_day'
 const CACHE_TTL = 120_000 // 2 minutes (worker refreshes every 30s, so data is always fresh)
+const TOP_ARB_TTL = 900_000 // 15 minutes (long-lived, updated every cycle)
 const REFRESH_INTERVAL = 30_000 // 30 seconds
 
 let workerRunning = false
@@ -140,6 +142,29 @@ async function runCycle() {
 
     // ── Cache ────────────────────────────────────────
     cacheSet(CACHE_KEY, markets, CACHE_TTL)
+
+    // ── Top Arb of the Day (separate lightweight cache) ──
+    const bestArb = markets.find(m => m.isArbSafe && m.edge > 0)
+    if (bestArb) {
+      cacheSet(TOP_ARB_KEY, {
+        question: bestArb.question,
+        polymarket: bestArb.polymarket,
+        kalshi: bestArb.kalshi,
+        edge: bestArb.edge,
+        difference: bestArb.difference,
+        totalCost: bestArb.totalCost,
+        buyPlatform: bestArb.buyPlatform,
+        volume: bestArb.volume,
+        aiConfidence: bestArb.aiConfidence,
+        polymarketUrl: bestArb.polymarketUrl,
+        kalshiUrl: bestArb.kalshiUrl,
+        endDate: bestArb.endDate,
+        category: bestArb.category,
+      }, TOP_ARB_TTL)
+    } else {
+      cacheSet(TOP_ARB_KEY, null, TOP_ARB_TTL)
+    }
+
     lastRunMs = Date.now()
     lastRunTimings = timings
     consecutiveErrors = 0
@@ -187,4 +212,4 @@ export function ensureWorkerRunning() {
 /**
  * Returns the cache key used by the worker (for the API route).
  */
-export { CACHE_KEY }
+export { CACHE_KEY, TOP_ARB_KEY }
