@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '../../../lib/auth'
 import { cacheGetWithMeta } from '../../../lib/cache'
-import { ensureWorkerRunning, CACHE_KEY, getLastTimings } from '../../../lib/scanner-worker'
+import { ensureWorkerRunning, waitForFirstCycle, CACHE_KEY, getLastTimings } from '../../../lib/scanner-worker'
 
 const FREE_MARKET_LIMIT = 5
 
@@ -21,8 +21,12 @@ export async function GET(request) {
   ensureWorkerRunning()
 
   try {
-    // Always serve from cache — never compute inline
-    const cached = cacheGetWithMeta(CACHE_KEY)
+    // If cache is empty (cold start), wait for the first worker cycle
+    let cached = cacheGetWithMeta(CACHE_KEY)
+    if (!cached.value) {
+      await waitForFirstCycle()
+      cached = cacheGetWithMeta(CACHE_KEY)
+    }
     const markets = cached.value || []
     const cacheAgeMs = cached.age
     const cacheTimestamp = cached.timestamp

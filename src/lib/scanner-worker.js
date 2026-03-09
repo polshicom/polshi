@@ -24,6 +24,7 @@ let intervalHandle = null
 let lastRunMs = 0
 let lastRunTimings = null
 let consecutiveErrors = 0
+let firstCyclePromise = null
 
 /**
  * Returns timing data from the last worker run (for diagnostics).
@@ -199,14 +200,22 @@ export function ensureWorkerRunning() {
 
   console.log('[scanner-worker] Starting background worker (30s interval)')
 
-  // Run first cycle immediately
-  runCycle()
+  // Run first cycle immediately, store promise so API routes can await it
+  firstCyclePromise = runCycle()
 
   // Then repeat on interval
   intervalHandle = setInterval(runCycle, REFRESH_INTERVAL)
 
   // Prevent interval from keeping Node alive during graceful shutdown
   if (intervalHandle?.unref) intervalHandle.unref()
+}
+
+/**
+ * Waits for the first worker cycle to complete (cold-start).
+ * Returns immediately if the worker has already completed a cycle.
+ */
+export async function waitForFirstCycle() {
+  if (firstCyclePromise) await firstCyclePromise
 }
 
 /**
