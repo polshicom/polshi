@@ -401,6 +401,31 @@ function extractMonthFromText(text) {
   return null
 }
 
+// ── Scope Detection (tournament vs group vs match) ───
+// Prevents "Win World Cup" from matching "Win Group B of World Cup"
+
+function detectScope(text) {
+  // Group stage: "Group A", "Group B", "group stage"
+  if (/\bgroup\s+[A-Za-z]\b/i.test(text)) return 'group'
+  if (/\bgroup\s+stage\b/i.test(text)) return 'group'
+  // Knockout rounds
+  if (/\bround\s+of\s+\d+\b/i.test(text)) return 'knockout'
+  if (/\bquarterfinal\w*\b/i.test(text)) return 'knockout'
+  if (/\bsemifinal\w*\b/i.test(text)) return 'knockout'
+  if (/\bsemi-final\w*\b/i.test(text)) return 'knockout'
+  if (/\b(third|3rd)\s+place\b/i.test(text)) return 'knockout'
+  // Specific match: "vs", "match", "game"
+  if (/\bvs\.?\b/i.test(text)) return 'match'
+  if (/\bgame\s+\d\b/i.test(text)) return 'match'
+  // Conference / division
+  if (/\b(afc|nfc|eastern|western|atlantic|pacific|central|southeast|northwest|southwest)\s+(conference|division|champion\w*|winner|final\w*)\b/i.test(text)) return 'division'
+  if (/\b(conference|division)\s+(champion\w*|winner|final\w*)\b/i.test(text)) return 'division'
+  // Explicit "win the [tournament]" with no sub-qualifier = tournament scope
+  if (/\bwin\b.*\b(world cup|championship|title|cup|trophy|super bowl|world series|stanley cup|premier league|champions league|finals)\b/i.test(text)) return 'tournament'
+  if (/\b(world cup|championship|super bowl|world series|stanley cup)\b.*\b(winner|champion)\b/i.test(text)) return 'tournament'
+  return null
+}
+
 // ── Keyword Extraction ───────────────────────────────
 
 function extractKeywords(text) {
@@ -422,6 +447,7 @@ export function buildFingerprint(market) {
   const primaryEntity = extractPrimaryEntity(q, allEntities)
   const topic = detectTopic(q)
   const action = detectAction(q)
+  const scope = detectScope(q)
   const dateBucket = buildDateBucket(market.endDate)
   const yearInText = extractYearFromText(q)
   const monthInText = extractMonthFromText(q)
@@ -434,6 +460,7 @@ export function buildFingerprint(market) {
     allEntities,
     topic,
     action,
+    scope,
     dateBucket,
     yearInText,
     monthInText,

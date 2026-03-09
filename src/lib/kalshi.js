@@ -12,12 +12,12 @@ function toProb(val) {
 export async function fetchKalshiMarkets() {
   const allMarkets = []
   let cursor = null
-  const maxPages = 5
+  const maxPages = 25
 
   for (let page = 0; page < maxPages; page++) {
     const params = new URLSearchParams({
       status: 'open',
-      limit: '100',
+      limit: '200',
       with_nested_markets: 'true',
     })
     if (cursor) params.set('cursor', cursor)
@@ -99,6 +99,8 @@ export async function fetchKalshiMarkets() {
           prob,
           priceSource,
           volume: mkt.volume || 0,
+          openInterest: mkt.open_interest || 0,
+          volume24h: mkt.volume_24h || 0,
           category: event.category || '',
           endDate: mkt.close_time || mkt.expiration_time || null,
           description: mkt.rules_primary || '',
@@ -111,7 +113,7 @@ export async function fetchKalshiMarkets() {
     }
 
     cursor = data.cursor
-    if (!cursor || events.length < 100) break
+    if (!cursor || events.length < 200) break
   }
 
   return allMarkets

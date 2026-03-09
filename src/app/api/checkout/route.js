@@ -50,8 +50,8 @@ export async function POST(request) {
       customer: customerId,
       client_reference_id: session.user.id,
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${origin}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/dashboard`,
+      success_url: `${origin}/settings?upgraded=1`,
+      cancel_url: `${origin}/settings`,
     })
 
     return NextResponse.json({ url: checkoutSession.url })

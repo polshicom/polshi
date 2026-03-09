@@ -57,6 +57,14 @@ export default function DominanceView() {
         const polyVol = pt?.polymarket?.volume ?? poly.reduce((s, m) => s + (m.volume || 0), 0)
         const kalshiVol = pt?.kalshi?.volume ?? kalshi.reduce((s, m) => s + (m.volume || 0), 0)
 
+        // Liquidity / Open Interest — the comparable "current platform size" metrics
+        const polyLiquidity = pt?.polymarket?.liquidity ?? 0
+        const kalshiOI = pt?.kalshi?.openInterest ?? 0
+
+        // 24h volume
+        const polyVol24h = pt?.polymarket?.volume24hr ?? 0
+        const kalshiVol24h = pt?.kalshi?.volume24h ?? 0
+
         // Volume by category
         const catMap = {}
         for (const m of markets) {
@@ -76,6 +84,8 @@ export default function DominanceView() {
 
         setData({
           polyVol, kalshiVol,
+          polyLiquidity, kalshiOI,
+          polyVol24h, kalshiVol24h,
           polyCount: pt?.polymarket?.count ?? poly.length,
           kalshiCount: pt?.kalshi?.count ?? kalshi.length,
           byCategory, topPoly, topKalshi,
@@ -89,57 +99,77 @@ export default function DominanceView() {
   if (loading) return <div className="compare-loading">Loading volume data...</div>
   if (!data) return <div className="compare-empty">Failed to load market data.</div>
 
+  // Liquidity / Open Interest as the primary comparable metric
+  const totalLiq = data.polyLiquidity + data.kalshiOI
+  const polyLiqPct = totalLiq > 0 ? ((data.polyLiquidity / totalLiq) * 100).toFixed(1) : 0
+  const kalshiLiqPct = totalLiq > 0 ? ((data.kalshiOI / totalLiq) * 100).toFixed(1) : 0
+
+  // Lifetime volume (secondary — different units)
   const totalVol = data.polyVol + data.kalshiVol
   const polyPct = totalVol > 0 ? ((data.polyVol / totalVol) * 100).toFixed(1) : 0
   const kalshiPct = totalVol > 0 ? ((data.kalshiVol / totalVol) * 100).toFixed(1) : 0
 
-  const overviewData = [
-    { name: 'Polymarket', value: data.polyVol },
-    { name: 'Kalshi', value: data.kalshiVol },
-  ]
-
   return (
     <>
-      {/* Big volume comparison */}
+      {/* Primary: Liquidity / Open Interest comparison */}
       <div className="dominance-overview">
         <div className="dominance-totals">
           <div className="dominance-platform">
             <span className="badge-polymarket">Polymarket</span>
-            <span className="dominance-vol">{formatVol(data.polyVol)}</span>
-            <span className="dominance-pct">{polyPct}% of volume</span>
+            <span className="dominance-vol">{formatVol(data.polyLiquidity)}</span>
+            <span className="dominance-metric-label">Liquidity</span>
+            <span className="dominance-pct">{polyLiqPct}%</span>
             <span className="dominance-count">{data.polyCount} markets</span>
           </div>
           <div className="dominance-vs">vs</div>
           <div className="dominance-platform">
             <span className="badge-kalshi">Kalshi</span>
-            <span className="dominance-vol">{formatVol(data.kalshiVol)}</span>
-            <span className="dominance-pct">{kalshiPct}% of volume</span>
+            <span className="dominance-vol">{formatVol(data.kalshiOI)}</span>
+            <span className="dominance-metric-label">Open Interest</span>
+            <span className="dominance-pct">{kalshiLiqPct}%</span>
             <span className="dominance-count">{data.kalshiCount} markets</span>
           </div>
         </div>
 
-        {/* Volume bar */}
+        {/* Liquidity bar */}
         <div className="dominance-bar-wrap">
           <div className="dominance-bar">
-            <div className="dominance-bar-poly" style={{ width: `${polyPct}%` }} />
-            <div className="dominance-bar-kalshi" style={{ width: `${kalshiPct}%` }} />
+            <div className="dominance-bar-poly" style={{ width: `${polyLiqPct}%` }} />
+            <div className="dominance-bar-kalshi" style={{ width: `${kalshiLiqPct}%` }} />
           </div>
           <div className="dominance-bar-labels">
-            <span style={{ color: POLY_COLOR }}>Polymarket {polyPct}%</span>
-            <span style={{ color: KALSHI_COLOR }}>Kalshi {kalshiPct}%</span>
+            <span style={{ color: POLY_COLOR }}>Polymarket {polyLiqPct}%</span>
+            <span style={{ color: KALSHI_COLOR }}>Kalshi {kalshiLiqPct}%</span>
           </div>
         </div>
 
         <p className="dominance-insight">
-          {Number(polyPct) > 80
-            ? `Polymarket currently controls ${polyPct}% of prediction market liquidity. Higher liquidity leads to tighter spreads and more reliable price discovery — making it the primary venue for large trades.`
-            : Number(polyPct) > 60
-            ? `Polymarket holds ${polyPct}% of total volume while Kalshi captures ${kalshiPct}%. The gap is narrowing — compare prices across both for the best edge.`
-            : `Volume is relatively balanced — Polymarket at ${polyPct}% and Kalshi at ${kalshiPct}%. This competition benefits traders with more arbitrage opportunities.`
+          {Number(polyLiqPct) > 60
+            ? `Polymarket holds ${polyLiqPct}% of current market liquidity. Higher liquidity means tighter spreads and better price discovery — making it the primary venue for large trades.`
+            : Number(kalshiLiqPct) > 60
+            ? `Kalshi holds ${kalshiLiqPct}% of current open interest. Their regulated exchange model is attracting significant capital — compare prices across both for the best edge.`
+            : `Liquidity is well-balanced — Polymarket at ${polyLiqPct}% and Kalshi at ${kalshiLiqPct}%. This competition benefits traders with more arbitrage opportunities.`
           }
         </p>
+
+        {/* Secondary stats */}
+        <div className="dominance-secondary">
+          <div className="dominance-stat-row">
+            <span className="dominance-stat-label">24h Volume</span>
+            <span className="dominance-stat-value" style={{ color: POLY_COLOR }}>{formatVol(data.polyVol24h)}</span>
+            <span className="dominance-stat-vs">vs</span>
+            <span className="dominance-stat-value" style={{ color: KALSHI_COLOR }}>{formatVol(data.kalshiVol24h)}</span>
+          </div>
+          <div className="dominance-stat-row">
+            <span className="dominance-stat-label">Total Volume</span>
+            <span className="dominance-stat-value" style={{ color: POLY_COLOR }}>{formatVol(data.polyVol)}</span>
+            <span className="dominance-stat-vs">vs</span>
+            <span className="dominance-stat-value" style={{ color: KALSHI_COLOR }}>{formatVol(data.kalshiVol)}</span>
+          </div>
+        </div>
+
         <p className="dominance-note">
-          Note: Polymarket reports volume in USD traded. Kalshi reports volume in contracts traded (each worth up to $1). These units differ, so the comparison is approximate.
+          Polymarket liquidity = USDC available in order books. Kalshi open interest = outstanding contracts (each worth up to $1). 24h volume shows daily trading activity.
         </p>
       </div>
 

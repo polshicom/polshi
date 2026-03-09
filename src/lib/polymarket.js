@@ -112,6 +112,8 @@ export async function fetchPolymarketMarkets() {
       prob,
       priceSource,
       volume: m.volume ? parseFloat(m.volume) : 0,
+      liquidity: m.liquidityNum != null ? parseFloat(m.liquidityNum) : (m.liquidity ? parseFloat(m.liquidity) : 0),
+      volume24hr: m.volume24hr ? parseFloat(m.volume24hr) : 0,
       outcomes: outcomes,
       endDate: m.endDate || null,
       description: m.description || '',

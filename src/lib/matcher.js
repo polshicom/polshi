@@ -228,6 +228,17 @@ const CONFLICTING_ACTIONS = new Set([
 ])
 
 function hasMismatchConflict(fpA, fpB) {
+  // Scope conflicts — tournament ≠ group ≠ knockout ≠ match ≠ division
+  if (fpA.scope && fpB.scope && fpA.scope !== fpB.scope) {
+    return { conflict: true, reason: `Scope conflict: ${fpA.scope} vs ${fpB.scope}` }
+  }
+  // If one has a sub-tournament scope and the other has no scope, reject too
+  // (a "group" market should not match a market with no qualifier)
+  const subScopes = new Set(['group', 'knockout', 'match', 'division'])
+  if ((subScopes.has(fpA.scope) && !fpB.scope) || (subScopes.has(fpB.scope) && !fpA.scope)) {
+    return { conflict: true, reason: `Scope conflict: ${fpA.scope || 'none'} vs ${fpB.scope || 'none'}` }
+  }
+
   // Action conflicts
   if (fpA.action !== 'unknown' && fpB.action !== 'unknown') {
     const pair = `${fpA.action}|${fpB.action}`

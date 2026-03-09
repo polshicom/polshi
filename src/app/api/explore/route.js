@@ -36,6 +36,8 @@ export async function GET(request) {
           question: m.question,
           prob: Math.round(m.prob * 100),
           volume: m.volume || 0,
+          liquidity: m.liquidity || 0,
+          volume24hr: m.volume24hr || 0,
           volumeFormatted: formatVolume(m.volume || 0),
           category: categorize(m.question),
           platform: 'polymarket',
@@ -50,6 +52,8 @@ export async function GET(request) {
           question: m.question,
           prob: Math.round(m.prob * 100),
           volume: m.volume || 0,
+          openInterest: m.openInterest || 0,
+          volume24h: m.volume24h || 0,
           volumeFormatted: formatVolume(m.volume || 0),
           category: categorize(m.question),
           platform: 'kalshi',
@@ -73,10 +77,14 @@ export async function GET(request) {
       polymarket: {
         count: allPoly.length,
         volume: allPoly.reduce((s, m) => s + (m.volume || 0), 0),
+        liquidity: allPoly.reduce((s, m) => s + (m.liquidity || 0), 0),
+        volume24hr: allPoly.reduce((s, m) => s + (m.volume24hr || 0), 0),
       },
       kalshi: {
         count: allKalshi.length,
         volume: allKalshi.reduce((s, m) => s + (m.volume || 0), 0),
+        openInterest: allKalshi.reduce((s, m) => s + (m.openInterest || 0), 0),
+        volume24h: allKalshi.reduce((s, m) => s + (m.volume24h || 0), 0),
       },
     }
 
