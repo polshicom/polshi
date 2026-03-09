@@ -62,14 +62,28 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (supabaseUrl) {
         try {
           const supabase = getSupabaseAdmin()
+          const userId = token.id || token.sub
+
+          // 1. Check subscriptions table (Stripe-managed)
           const { data: sub } = await supabase
             .from('subscriptions')
             .select('plan, status')
-            .eq('user_id', token.id || token.sub)
+            .eq('user_id', userId)
             .eq('status', 'active')
             .single()
 
-          token.plan = sub?.plan || 'free'
+          if (sub?.plan) {
+            token.plan = sub.plan
+          } else {
+            // 2. Fallback: check users.plan column (manual overrides)
+            const { data: usr } = await supabase
+              .from('users')
+              .select('plan')
+              .eq('id', userId)
+              .single()
+
+            token.plan = usr?.plan || 'free'
+          }
           token.isPro = token.plan === 'pro'
         } catch {
           token.plan = token.plan || 'free'
