@@ -12,15 +12,18 @@ import { fetchKalshiMarkets } from './kalshi.js'
 import { matchMarkets, categorize } from './matcher.js'
 import { aiVerifyMatches } from './ai-verify.js'
 import { sendDiscordAlert, formatMarketAlert } from './discord.js'
+import { fetchAllTrades } from './trades.js'
 
 const CACHE_KEY = 'matched_markets_v2'
 const TOP_ARB_KEY = 'top_arb_of_day'
 const EXPLORE_KEY = 'explore_markets'
 const STATS_KEY = 'scanner_stats'
+const WHALE_YESTERDAY_KEY = 'whale_yesterday'
 const CACHE_TTL = 120_000 // 2 minutes (worker refreshes every 30s, so data is always fresh)
 const TOP_ARB_TTL = 900_000 // 15 minutes (long-lived, updated every cycle)
 const EXPLORE_TTL = 120_000 // 2 minutes (same as scanner cache)
 const STATS_TTL = 120_000 // 2 minutes
+const WHALE_YESTERDAY_TTL = 300_000 // 5 minutes
 const REFRESH_INTERVAL = 30_000 // 30 seconds
 
 function formatVolume(vol) {
@@ -117,6 +120,16 @@ async function runCycle() {
     }
     exploreMarkets.sort((a, b) => b.volume - a.volume)
     cacheSet(EXPLORE_KEY, exploreMarkets, EXPLORE_TTL)
+
+    // ── Whale of the Day (biggest trade from recent trades) ──
+    fetchAllTrades()
+      .then(trades => {
+        if (trades.length > 0) {
+          const top = trades.reduce((best, t) => t.dollarValue > best.dollarValue ? t : best, trades[0])
+          cacheSet(WHALE_YESTERDAY_KEY, top, WHALE_YESTERDAY_TTL)
+        }
+      })
+      .catch(err => console.error('[scanner-worker] Whale yesterday error:', err.message))
 
     // ── Match ────────────────────────────────────────
     const tMatch = Date.now()
@@ -288,4 +301,4 @@ export async function waitForFirstCycle() {
 /**
  * Returns the cache key used by the worker (for the API route).
  */
-export { CACHE_KEY, TOP_ARB_KEY, EXPLORE_KEY, STATS_KEY }
+export { CACHE_KEY, TOP_ARB_KEY, EXPLORE_KEY, STATS_KEY, WHALE_YESTERDAY_KEY }

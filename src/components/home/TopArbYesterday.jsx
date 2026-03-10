@@ -12,7 +12,7 @@ function formatTimeAgo(isoStr) {
   return `${Math.floor(minutes / 60)}h ago`
 }
 
-export default function BestOpportunity() {
+export default function TopArbYesterday() {
   const [best, setBest] = useState(null)
   const [lastUpdated, setLastUpdated] = useState(null)
   const [timeAgo, setTimeAgo] = useState('')
@@ -29,7 +29,6 @@ export default function BestOpportunity() {
       .catch(() => setLoaded(true))
   }, [])
 
-  // Tick "last updated" display
   useEffect(() => {
     if (!lastUpdated) return
     setTimeAgo(formatTimeAgo(lastUpdated))
@@ -37,14 +36,13 @@ export default function BestOpportunity() {
     return () => clearInterval(tick)
   }, [lastUpdated])
 
-  // Skeleton while loading
   if (!loaded) {
     return (
       <section className="best-opp-section">
         <div className="best-opp best-opp-skeleton">
           <div className="best-opp-label">
             <span className="best-opp-dot" />
-            Top Arb of the Day
+            Top Arb of Yesterday
           </div>
           <div className="best-opp-skeleton-line best-opp-skeleton-wide" />
           <div className="best-opp-skeleton-prices">
@@ -57,14 +55,13 @@ export default function BestOpportunity() {
     )
   }
 
-  // No arb available
   if (!best) {
     return (
       <section className="best-opp-section">
         <div className="best-opp best-opp-empty">
           <div className="best-opp-label">
             <span className="best-opp-dot" />
-            Top Arb of the Day
+            Top Arb of Yesterday
           </div>
           <p className="best-opp-fallback">No high-confidence arb right now</p>
           {timeAgo && <span className="best-opp-updated">Updated {timeAgo}</span>}
@@ -80,7 +77,7 @@ export default function BestOpportunity() {
       <a href="/arbitrage" className="best-opp">
         <div className="best-opp-label">
           <span className="best-opp-dot" />
-          Top Arb of the Day
+          Top Arb of Yesterday
         </div>
 
         <h3 className="best-opp-question">{best.question}</h3>

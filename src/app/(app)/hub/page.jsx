@@ -2,6 +2,16 @@
 
 import { useState, useEffect } from 'react'
 
+function formatTimeAgo(isoStr) {
+  if (!isoStr) return ''
+  const seconds = Math.round((Date.now() - new Date(isoStr).getTime()) / 1000)
+  if (seconds < 5) return 'just now'
+  if (seconds < 60) return `${seconds}s ago`
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m ago`
+  return `${Math.floor(minutes / 60)}h ago`
+}
+
 const TOOLS = [
   {
     title: 'Arbitrage Scanner',
@@ -49,6 +59,19 @@ function formatVol(vol) {
 export default function HubPage() {
   const [activeCategory, setActiveCategory] = useState('All')
   const [previews, setPreviews] = useState({})
+  const [whales, setWhales] = useState([])
+
+  // Fetch whale trades for Whales of the Day
+  useEffect(() => {
+    fetch('/api/whales?minSize=100')
+      .then(r => r.json())
+      .then(data => {
+        const trades = data.trades || []
+        trades.sort((a, b) => b.dollarValue - a.dollarValue)
+        setWhales(trades.slice(0, 5))
+      })
+      .catch(() => {})
+  }, [])
 
   // Fetch preview data for dashboard cards
   useEffect(() => {
@@ -152,6 +175,35 @@ export default function HubPage() {
           ))}
         </div>
       </div>
+
+      {/* Whales of the Day */}
+      {whales.length > 0 && (
+        <div className="hub-whales">
+          <h2 className="hub-dashboards-heading">Whales of the Day</h2>
+          <div className="hub-whales-table">
+            <div className="hub-whales-header-row">
+              <span>Market</span>
+              <span>Platform</span>
+              <span>Value</span>
+              <span>Type</span>
+              <span>Time</span>
+            </div>
+            {whales.map((w, i) => (
+              <a key={i} href="/whales" className="hub-whales-row">
+                <span className="hub-whales-market">
+                  {w.market.length > 40 ? w.market.slice(0, 40) + '...' : w.market}
+                </span>
+                <span className={`badge-${w.platform}`}>
+                  {w.platform === 'polymarket' ? 'Poly' : 'Kalshi'}
+                </span>
+                <span className="hub-whales-value">{w.dollarFormatted}</span>
+                <span className="hub-whales-label">{w.whaleLabel || 'Trade'}</span>
+                <span className="hub-whales-time">{formatTimeAgo(w.time)}</span>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Featured dashboards */}
       <div className="hub-dashboards">

@@ -1,8 +1,10 @@
 import Header from '../components/landing/Header'
-import SearchHero from '../components/home/SearchHero'
-import BestOpportunity from '../components/home/BestOpportunity'
-import TopArbs from '../components/home/TopArbs'
-import TrendingMarkets from '../components/home/TrendingMarkets'
+import Hero from '../components/home/Hero'
+import MarketDominance from '../components/home/MarketDominance'
+import TopArbYesterday from '../components/home/TopArbYesterday'
+import WhaleYesterday from '../components/home/WhaleYesterday'
+import ScannerPreview from '../components/home/ScannerPreview'
+import SportsbookComingSoon from '../components/home/SportsbookComingSoon'
 import StatusBar from '../components/home/StatusBar'
 import ArbButton from '../components/home/ArbButton'
 import Footer from '../components/landing/Footer'
@@ -14,10 +16,12 @@ export default function Home() {
       <Header />
       <ArbButton />
       <main>
-        <SearchHero />
-        <BestOpportunity />
-        <TopArbs />
-        <TrendingMarkets />
+        <Hero />
+        <MarketDominance />
+        <TopArbYesterday />
+        <WhaleYesterday />
+        <ScannerPreview />
+        <SportsbookComingSoon />
       </main>
       <Footer />
     </>
