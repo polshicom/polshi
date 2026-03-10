@@ -2,15 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react'
 
-function parseVolume(volStr) {
-  if (!volStr || typeof volStr !== 'string') return 0
-  const cleaned = volStr.replace(/[$,]/g, '')
-  if (cleaned.endsWith('M')) return parseFloat(cleaned) * 1_000_000
-  if (cleaned.endsWith('K')) return parseFloat(cleaned) * 1_000
-  if (cleaned.endsWith('B')) return parseFloat(cleaned) * 1_000_000_000
-  return parseFloat(cleaned) || 0
-}
-
 function formatUsd(n) {
   if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`
   if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}K`
@@ -22,37 +13,30 @@ export default function StatusBar() {
   const [secondsAgo, setSecondsAgo] = useState(0)
   const lastFetch = useRef(Date.now())
 
-  function processMarkets(data) {
-    const markets = data.markets || []
-    const safe = markets.filter(m => m.isArbSafe && m.edge > 0)
-    let totalEdge = 0
-    for (const m of safe) {
-      totalEdge += (m.edge / 100) * parseVolume(m.volume)
-    }
-    const totalScanned = data.meta?.total || markets.length
+  function processStats(data) {
     setStats({
-      scanned: totalScanned,
-      arbCount: safe.length,
-      totalEdge,
+      scanned: data.scanned || 0,
+      arbCount: data.arbCount || 0,
+      totalEdge: data.totalEdge || 0,
     })
     lastFetch.current = Date.now()
     setSecondsAgo(0)
   }
 
   useEffect(() => {
-    // Initial fetch
-    fetch('/api/markets?confidence=all&limit=100')
+    // Initial fetch — lightweight stats-only endpoint
+    fetch('/api/scanner-stats')
       .then(r => r.json())
-      .then(processMarkets)
+      .then(processStats)
       .catch(() => {})
 
-    // Poll every 20s
+    // Poll every 30s (matches worker interval)
     const poll = setInterval(() => {
-      fetch('/api/markets?confidence=all&limit=100')
+      fetch('/api/scanner-stats')
         .then(r => r.json())
-        .then(processMarkets)
+        .then(processStats)
         .catch(() => {})
-    }, 20_000)
+    }, 30_000)
 
     // Tick seconds
     const tick = setInterval(() => {

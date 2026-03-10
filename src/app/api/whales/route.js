@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
-import { cacheGet, cacheSet } from '../../../lib/cache'
+import { cacheGetWithMeta, cacheSet } from '../../../lib/cache'
 import { fetchAllTrades } from '../../../lib/trades'
 
 const CACHE_KEY = 'whale_trades'
+const CACHE_TTL = 60_000 // 60 seconds
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url)
@@ -10,11 +11,18 @@ export async function GET(request) {
   const minSize = parseInt(searchParams.get('minSize') || '0', 10)
 
   try {
-    let trades = cacheGet(CACHE_KEY)
+    const cached = cacheGetWithMeta(CACHE_KEY)
+    let trades = cached.value
 
     if (!trades) {
+      // Cold start or cache fully expired — fetch and cache
       trades = await fetchAllTrades()
-      cacheSet(CACHE_KEY, trades, 30_000)
+      cacheSet(CACHE_KEY, trades, CACHE_TTL)
+    } else if (cached.stale) {
+      // Serve stale data immediately, refresh in background
+      fetchAllTrades()
+        .then(fresh => cacheSet(CACHE_KEY, fresh, CACHE_TTL))
+        .catch(() => {})
     }
 
     let filtered = trades
@@ -31,7 +39,8 @@ export async function GET(request) {
       trades: filtered,
       meta: {
         total: filtered.length,
-        lastUpdated: new Date().toISOString(),
+        lastUpdated: cached.timestamp ? new Date(cached.timestamp).toISOString() : new Date().toISOString(),
+        cacheAgeMs: cached.age !== Infinity ? Math.round(cached.age) : null,
       },
     })
   } catch (error) {

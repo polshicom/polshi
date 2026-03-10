@@ -4,6 +4,7 @@ import BestOpportunity from '../components/home/BestOpportunity'
 import TopArbs from '../components/home/TopArbs'
 import TrendingMarkets from '../components/home/TrendingMarkets'
 import StatusBar from '../components/home/StatusBar'
+import ArbButton from '../components/home/ArbButton'
 import Footer from '../components/landing/Footer'
 
 export default function Home() {
@@ -11,6 +12,7 @@ export default function Home() {
     <>
       <StatusBar />
       <Header />
+      <ArbButton />
       <main>
         <SearchHero />
         <BestOpportunity />

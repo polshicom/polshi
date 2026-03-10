@@ -9,15 +9,35 @@
 import { cacheSet, cacheGetWithMeta } from './cache.js'
 import { fetchPolymarketMarkets } from './polymarket.js'
 import { fetchKalshiMarkets } from './kalshi.js'
-import { matchMarkets } from './matcher.js'
+import { matchMarkets, categorize } from './matcher.js'
 import { aiVerifyMatches } from './ai-verify.js'
 import { sendDiscordAlert, formatMarketAlert } from './discord.js'
 
 const CACHE_KEY = 'matched_markets_v2'
 const TOP_ARB_KEY = 'top_arb_of_day'
+const EXPLORE_KEY = 'explore_markets'
+const STATS_KEY = 'scanner_stats'
 const CACHE_TTL = 120_000 // 2 minutes (worker refreshes every 30s, so data is always fresh)
 const TOP_ARB_TTL = 900_000 // 15 minutes (long-lived, updated every cycle)
+const EXPLORE_TTL = 120_000 // 2 minutes (same as scanner cache)
+const STATS_TTL = 120_000 // 2 minutes
 const REFRESH_INTERVAL = 30_000 // 30 seconds
+
+function formatVolume(vol) {
+  if (vol >= 1_000_000) return `$${(vol / 1_000_000).toFixed(1)}M`
+  if (vol >= 1_000) return `$${(vol / 1_000).toFixed(0)}K`
+  return `$${vol.toFixed(0)}`
+}
+
+function parseVolume(volStr) {
+  if (typeof volStr === 'number') return volStr
+  if (!volStr || typeof volStr !== 'string') return 0
+  const cleaned = volStr.replace(/[$,]/g, '')
+  if (cleaned.endsWith('M')) return parseFloat(cleaned) * 1_000_000
+  if (cleaned.endsWith('K')) return parseFloat(cleaned) * 1_000
+  if (cleaned.endsWith('B')) return parseFloat(cleaned) * 1_000_000_000
+  return parseFloat(cleaned) || 0
+}
 
 let workerRunning = false
 let intervalHandle = null
@@ -62,6 +82,41 @@ async function runCycle() {
     }
 
     console.log(`[scanner-worker] Fetched ${polymarkets.length} Polymarket + ${kalshiMarkets.length} Kalshi markets (${timings.fetchMs}ms)`)
+
+    // ── Explore cache (raw combined market list for explore/hub/volume) ──
+    const exploreMarkets = []
+    for (const m of polymarkets) {
+      exploreMarkets.push({
+        question: m.question,
+        prob: Math.round(m.prob * 100),
+        volume: m.volume || 0,
+        liquidity: m.liquidity || 0,
+        volume24hr: m.volume24hr || 0,
+        volumeFormatted: formatVolume(m.volume || 0),
+        category: categorize(m.question),
+        platform: 'polymarket',
+        endDate: m.endDate || null,
+        url: m.url || null,
+        description: m.description || '',
+      })
+    }
+    for (const m of kalshiMarkets) {
+      exploreMarkets.push({
+        question: m.question,
+        prob: Math.round(m.prob * 100),
+        volume: m.volume || 0,
+        openInterest: m.openInterest || 0,
+        volume24h: m.volume24h || 0,
+        volumeFormatted: formatVolume(m.volume || 0),
+        category: categorize(m.question),
+        platform: 'kalshi',
+        endDate: m.endDate || null,
+        url: m.url || null,
+        description: m.description || '',
+      })
+    }
+    exploreMarkets.sort((a, b) => b.volume - a.volume)
+    cacheSet(EXPLORE_KEY, exploreMarkets, EXPLORE_TTL)
 
     // ── Match ────────────────────────────────────────
     const tMatch = Date.now()
@@ -166,6 +221,18 @@ async function runCycle() {
       cacheSet(TOP_ARB_KEY, null, TOP_ARB_TTL)
     }
 
+    // ── Scanner stats (lightweight summary for StatusBar) ──
+    const safeArbs = markets.filter(m => m.isArbSafe && m.edge > 0)
+    let totalEdge = 0
+    for (const m of safeArbs) {
+      totalEdge += (m.edge / 100) * parseVolume(m.volume)
+    }
+    cacheSet(STATS_KEY, {
+      scanned: exploreMarkets.length,
+      arbCount: safeArbs.length,
+      totalEdge,
+    }, STATS_TTL)
+
     lastRunMs = Date.now()
     lastRunTimings = timings
     consecutiveErrors = 0
@@ -221,4 +288,4 @@ export async function waitForFirstCycle() {
 /**
  * Returns the cache key used by the worker (for the API route).
  */
-export { CACHE_KEY, TOP_ARB_KEY }
+export { CACHE_KEY, TOP_ARB_KEY, EXPLORE_KEY, STATS_KEY }
