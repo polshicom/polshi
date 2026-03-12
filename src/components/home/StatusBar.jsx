@@ -61,7 +61,7 @@ export default function StatusBar() {
         </span>
         <span className="status-bar-divider" />
         <span className="status-bar-stat status-bar-arbs">
-          <span className="status-bar-blurred"><strong>47</strong></span> arb opportunities
+          <strong>{stats.arbCount}</strong> arb opportunities
         </span>
         <span className="status-bar-divider" />
         <span className="status-bar-stat">

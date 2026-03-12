@@ -60,17 +60,17 @@ export default function MarketDominance() {
             <span className="badge-polymarket">Polymarket</span>
             <span className="dominance-count">{data.polyCount}</span>
             <span className="dominance-label">markets</span>
-            <span className="dominance-vol">{data.polyVol} volume</span>
+            <span className="dominance-vol">{data.polyVol}</span>
           </div>
           <div className="dominance-center">
             <span className="dominance-arb-count">{data.arbCount}</span>
-            <span className="dominance-arb-label">matched arbs</span>
+            <span className="dominance-arb-label">matched markets</span>
           </div>
           <div className="dominance-col">
             <span className="badge-kalshi">Kalshi</span>
             <span className="dominance-count">{data.kalshiCount}</span>
             <span className="dominance-label">markets</span>
-            <span className="dominance-vol">{data.kalshiVol} volume</span>
+            <span className="dominance-vol">{data.kalshiVol}</span>
           </div>
         </div>
       </div>

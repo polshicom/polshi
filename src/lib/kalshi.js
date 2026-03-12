@@ -1,4 +1,4 @@
-const KALSHI_EVENTS_URL = 'https://api.elections.kalshi.com/trade-api/v2/events'
+const KALSHI_EVENTS_URL = 'https://trading-api.kalshi.com/trade-api/v2/events'
 
 // Normalize a raw Kalshi price value to 0–1 probability.
 // Kalshi native scale is integer cents 0–100.
