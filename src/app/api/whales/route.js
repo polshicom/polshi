@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { cacheGetWithMeta, cacheSet } from '../../../lib/cache'
 import { fetchAllTrades } from '../../../lib/trades'
+import { ensureWorkerRunning, waitForFirstCycle } from '../../../lib/scanner-worker'
 
 const CACHE_KEY = 'whale_trades'
 const CACHE_TTL = 60_000 // 60 seconds
@@ -9,6 +10,9 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url)
   const platform = searchParams.get('platform') || 'all'
   const minSize = parseInt(searchParams.get('minSize') || '0', 10)
+
+  ensureWorkerRunning()
+  await waitForFirstCycle()
 
   try {
     const cached = cacheGetWithMeta(CACHE_KEY)

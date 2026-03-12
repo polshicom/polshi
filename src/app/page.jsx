@@ -3,6 +3,7 @@ import Hero from '../components/home/Hero'
 import MarketDominance from '../components/home/MarketDominance'
 import TopArbYesterday from '../components/home/TopArbYesterday'
 import WhaleYesterday from '../components/home/WhaleYesterday'
+import TopWhales from '../components/home/TopWhales'
 import ScannerPreview from '../components/home/ScannerPreview'
 import SportsbookComingSoon from '../components/home/SportsbookComingSoon'
 import StatusBar from '../components/home/StatusBar'
@@ -18,19 +19,16 @@ export default function Home() {
       <Header />
       <ArbButton />
       <div style={{ position: 'relative', overflow: 'hidden' }}>
-        {/* Dark mode: shooting stars on black */}
+        {/* Dark mode: multiple shooting stars with staggered timing */}
         <div className="dark-only">
-          <ShootingStars
-            starColor="#5e6ad2"
-            trailColor="#10b981"
-            minDelay={2000}
-            maxDelay={5000}
-          />
+          <ShootingStars starColor="#5e6ad2" trailColor="#10b981" minDelay={800} maxDelay={2500} />
+          <ShootingStars starColor="#10b981" trailColor="#5e6ad2" minDelay={1200} maxDelay={3000} />
+          <ShootingStars starColor="#3b82f6" trailColor="#8b5cf6" minDelay={1500} maxDelay={3500} />
         </div>
         {/* Light mode: particles on white */}
         <Particles
           className="absolute inset-0 light-only"
-          quantity={80}
+          quantity={200}
           ease={80}
           color="#000000"
           size={0.4}
@@ -40,6 +38,7 @@ export default function Home() {
           <MarketDominance />
           <TopArbYesterday />
           <WhaleYesterday />
+          <TopWhales />
           <ScannerPreview />
           <SportsbookComingSoon />
         </main>

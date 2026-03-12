@@ -12,7 +12,7 @@ function toProb(val) {
 export async function fetchKalshiMarkets() {
   const allMarkets = []
   let cursor = null
-  const maxPages = 25
+  const maxPages = 5
 
   for (let page = 0; page < maxPages; page++) {
     const params = new URLSearchParams({

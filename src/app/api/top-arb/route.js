@@ -4,6 +4,7 @@ import { ensureWorkerRunning, waitForFirstCycle, TOP_ARB_KEY } from '../../../li
 
 export async function GET() {
   ensureWorkerRunning()
+  await waitForFirstCycle()
 
   const cached = cacheGetWithMeta(TOP_ARB_KEY)
   const topArb = cached.value ?? null

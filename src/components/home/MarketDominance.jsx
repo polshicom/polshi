@@ -13,19 +13,21 @@ export default function MarketDominance() {
   const [data, setData] = useState(null)
 
   useEffect(() => {
-    fetch('/api/explore?limit=500')
-      .then(r => r.json())
-      .then(res => {
-        const markets = res.markets || []
-        const poly = markets.filter(m => m.platform === 'polymarket')
-        const kalshi = markets.filter(m => m.platform === 'kalshi')
-        const polyVol = poly.reduce((s, m) => s + (m.volume || 0), 0)
-        const kalshiVol = kalshi.reduce((s, m) => s + (m.volume || 0), 0)
+    Promise.all([
+      fetch('/api/explore?limit=1').then(r => r.json()),
+      fetch('/api/scanner-stats').then(r => r.json()),
+    ])
+      .then(([exploreRes, statsRes]) => {
+        const pt = exploreRes.meta?.platformTotals || {}
+        const poly = pt.polymarket || {}
+        const kalshi = pt.kalshi || {}
         setData({
-          polyCount: poly.length,
-          kalshiCount: kalshi.length,
-          polyVol: formatVol(polyVol),
-          kalshiVol: formatVol(kalshiVol),
+          polyCount: poly.count || 0,
+          kalshiCount: kalshi.count || 0,
+          polyVol: formatVol(poly.volume || 0),
+          kalshiVol: formatVol(kalshi.volume || 0),
+          arbCount: statsRes.arbCount || 0,
+          scanned: statsRes.scanned || 0,
         })
       })
       .catch(() => {})
@@ -60,7 +62,10 @@ export default function MarketDominance() {
             <span className="dominance-label">markets</span>
             <span className="dominance-vol">{data.polyVol} volume</span>
           </div>
-          <div className="dominance-vs">vs</div>
+          <div className="dominance-center">
+            <span className="dominance-arb-count">{data.arbCount}</span>
+            <span className="dominance-arb-label">matched arbs</span>
+          </div>
           <div className="dominance-col">
             <span className="badge-kalshi">Kalshi</span>
             <span className="dominance-count">{data.kalshiCount}</span>

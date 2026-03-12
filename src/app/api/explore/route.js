@@ -10,8 +10,9 @@ export async function GET(request) {
   const sortBy = searchParams.get('sort') || 'volume'
   const limit = Math.min(parseInt(searchParams.get('limit') || '300', 10), 500)
 
-  // Ensure background worker is running
+  // Ensure background worker is running and has data
   ensureWorkerRunning()
+  await waitForFirstCycle()
 
   try {
     // Serve from worker cache — no external API calls

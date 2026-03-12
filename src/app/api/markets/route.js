@@ -17,8 +17,9 @@ export async function GET(request) {
   const session = await auth()
   const isPro = session?.user?.isPro || false
 
-  // Ensure background worker is running (no-op if already started)
+  // Ensure background worker is running and has data
   ensureWorkerRunning()
+  await waitForFirstCycle()
 
   try {
     const cached = cacheGetWithMeta(CACHE_KEY)
