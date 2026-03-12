@@ -47,9 +47,9 @@ export default function TopWhales() {
       <div className="top-whales-card">
         <div className="top-whales-label">
           <span className="top-whales-icon">&#x1F40B;</span>
-          Top Whale Purchases Today
+          Top Whale Purchases
         </div>
-        <div className="top-whales-table">
+        <div className="top-whales-table" style={{ filter: 'blur(6px)', userSelect: 'none', pointerEvents: 'none' }}>
           <div className="top-whales-header">
             <span>Market</span>
             <span>Platform</span>
@@ -58,7 +58,7 @@ export default function TopWhales() {
             <span>Time</span>
           </div>
           {whales.map((w, i) => (
-            <a key={i} href="/whales" className="top-whales-row">
+            <div key={i} className="top-whales-row">
               <span className="top-whales-market">
                 {w.market.length > 35 ? w.market.slice(0, 35) + '...' : w.market}
               </span>
@@ -68,7 +68,7 @@ export default function TopWhales() {
               <span className="top-whales-value">{w.dollarFormatted}</span>
               <span className="top-whales-side">{w.side}</span>
               <span className="top-whales-time">{formatTimeAgo(w.time)}</span>
-            </a>
+            </div>
           ))}
         </div>
         <div className="top-whales-footer">

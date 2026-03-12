@@ -77,7 +77,7 @@ export default function TopArbYesterday() {
       <a href="/arbitrage" className="best-opp">
         <div className="best-opp-label">
           <span className="best-opp-dot" />
-          Top Arb of Yesterday
+          Yesterday's Top Arb
         </div>
 
         <h3 className="best-opp-question">{best.question}</h3>

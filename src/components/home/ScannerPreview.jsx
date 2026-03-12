@@ -40,7 +40,7 @@ export default function ScannerPreview() {
           <span className="live-dot" />
           Live Scanner
         </h2>
-        <div className="scanner-preview-list">
+        <div className="scanner-preview-list" style={{ filter: 'blur(6px)', userSelect: 'none', pointerEvents: 'none' }}>
           {arbs.map((arb, i) => (
             <div key={i} className="scanner-preview-row">
               <span className="scanner-preview-rank">{i + 1}</span>
