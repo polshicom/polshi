@@ -21,12 +21,7 @@ export async function GET(request) {
   ensureWorkerRunning()
 
   try {
-    // If cache is empty (cold start), wait for the first worker cycle
-    let cached = cacheGetWithMeta(CACHE_KEY)
-    if (!cached.value) {
-      await waitForFirstCycle()
-      cached = cacheGetWithMeta(CACHE_KEY)
-    }
+    const cached = cacheGetWithMeta(CACHE_KEY)
     const markets = cached.value || []
     const cacheAgeMs = cached.age
     const cacheTimestamp = cached.timestamp

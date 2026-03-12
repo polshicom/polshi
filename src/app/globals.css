@@ -3,13 +3,13 @@
 :root {
   /* Light-first defaults */
   --color-bg-primary: #ffffff;
-  --color-bg-secondary: #f8f9fa;
-  --color-bg-tertiary: #f1f3f5;
-  --color-bg-quaternary: #e9ecef;
+  --color-bg-secondary: #f9fafb;
+  --color-bg-tertiary: #f3f4f6;
+  --color-bg-quaternary: #e5e7eb;
   --color-bg-marketing: #ffffff;
-  --color-bg-translucent: rgba(0, 0, 0, 0.04);
-  --color-border-primary: #e2e8f0;
-  --color-border-secondary: #cbd5e1;
+  --color-bg-translucent: rgba(0, 0, 0, 0.03);
+  --color-border-primary: #e5e7eb;
+  --color-border-secondary: #d1d5db;
   --color-border-tertiary: #94a3b8;
   --color-border-translucent: rgba(0, 0, 0, 0.06);
   --color-text-primary: #0f172a;
@@ -22,37 +22,45 @@
   --header-height: 64px;
   --header-bg: rgba(255, 255, 255, 0.85);
   --header-border: rgba(0, 0, 0, 0.06);
-  --page-padding-inline: 24px;
-  --page-max-width: 1280px;
+  --page-padding-inline: 40px;
+  --page-max-width: 1220px;
   --font-weight-normal: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
-  --radius-8: 8px;
+  --radius-8: 10px;
   --radius-12: 12px;
   --radius-16: 16px;
   --radius-rounded: 9999px;
   --hero-bg: #ffffff;
+  --shadow-card: 0px 2px 8px rgba(0,0,0,0.04), 0px 1px 2px rgba(0,0,0,0.06);
+  --shadow-elevated: 0px 8px 32px rgba(0,0,0,0.08), 0px 2px 8px rgba(0,0,0,0.04);
+  --glass-bg: rgba(255,255,255,0.6);
+  --glass-border: rgba(0,0,0,0.06);
 }
 
 html[data-theme="dark"] {
-  --color-bg-primary: #08090a;
-  --color-bg-secondary: #1c1c1f;
-  --color-bg-tertiary: #232326;
-  --color-bg-quaternary: #28282c;
-  --color-bg-marketing: #010102;
-  --color-bg-translucent: rgba(255, 255, 255, 0.05);
-  --color-border-primary: #23252a;
-  --color-border-secondary: #34343a;
-  --color-border-tertiary: #3e3e44;
-  --color-border-translucent: rgba(255, 255, 255, 0.05);
-  --color-text-primary: #f7f8f8;
-  --color-text-secondary: #d0d6e0;
-  --color-text-tertiary: #8a8f98;
-  --color-text-quaternary: #62666d;
-  --header-bg: rgba(11, 11, 11, 0.8);
+  --color-bg-primary: #000000;
+  --color-bg-secondary: #0a0a0c;
+  --color-bg-tertiary: #111114;
+  --color-bg-quaternary: #18181c;
+  --color-bg-marketing: #000000;
+  --color-bg-translucent: rgba(255, 255, 255, 0.02);
+  --color-border-primary: rgba(255, 255, 255, 0.06);
+  --color-border-secondary: rgba(255, 255, 255, 0.08);
+  --color-border-tertiary: rgba(255, 255, 255, 0.12);
+  --color-border-translucent: rgba(255, 255, 255, 0.03);
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #b0b8c1;
+  --color-text-tertiary: #868f97;
+  --color-text-quaternary: #4b5563;
+  --header-bg: rgba(0, 0, 0, 0.75);
   --header-border: rgba(255, 255, 255, 0.08);
-  --hero-bg: #030303;
+  --hero-bg: #000000;
+  --shadow-card: 0px 2px 8px rgba(0,0,0,0.3), 0px 1px 2px rgba(0,0,0,0.5);
+  --shadow-elevated: 0px 8px 32px rgba(0,0,0,0.5), 0px 2px 8px rgba(0,0,0,0.3);
+  --glass-bg: rgba(255,255,255,0.02);
+  --glass-border: rgba(255,255,255,0.06);
 }
 
 .theme-toggle {
@@ -213,4 +221,21 @@ button {
 
 .ihb-light:hover .ihb-hover-content {
   color: #fff;
+}
+
+/* ── Noise Texture Overlay ──────────────────────── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.015;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 256px 256px;
+}
+
+html[data-theme="dark"] body::before {
+  opacity: 0.03;
 }

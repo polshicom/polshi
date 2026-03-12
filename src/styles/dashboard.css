@@ -16,7 +16,7 @@
   width: calc(100% - 32px);
   max-width: 1100px;
   height: 56px;
-  border-radius: 20px;
+  border-radius: 16px;
   overflow: hidden;
   box-shadow:
     0 8px 32px rgba(0, 0, 0, 0.12),
@@ -34,7 +34,7 @@
 .glass-layer {
   position: absolute;
   inset: 0;
-  border-radius: 20px;
+  border-radius: 16px;
   pointer-events: none;
 }
 
@@ -52,7 +52,7 @@
 }
 
 html[data-theme="dark"] .glass-tint {
-  background: rgba(15, 23, 42, 0.55);
+  background: rgba(0, 0, 0, 0.65);
 }
 
 .glass-shine {
@@ -305,11 +305,12 @@ html[data-theme="dark"] .glass-signup {
 /* ── Hub Page ──────────────────────────────────── */
 
 .hub-hero {
-  background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%);
-  color: #fff;
-  padding: 64px 24px 48px;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  padding: 48px 24px 32px;
   margin: -32px -24px 32px;
   text-align: left;
+  border-bottom: 1px solid var(--color-border-primary);
 }
 
 .hub-hero-badge {
@@ -319,8 +320,9 @@ html[data-theme="dark"] .glass-signup {
   padding: 6px 16px;
   font-size: 13px;
   font-weight: var(--font-weight-medium);
-  color: #fff;
-  background: rgba(255, 255, 255, 0.1);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-translucent);
+  border: 1px solid var(--color-border-primary);
   border-radius: var(--radius-rounded);
   margin-bottom: 24px;
 }
@@ -334,7 +336,7 @@ html[data-theme="dark"] .glass-signup {
 
 .hub-hero-subtitle {
   font-size: 16px;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--color-text-tertiary);
 }
 
 .hub-tools {
@@ -349,18 +351,22 @@ html[data-theme="dark"] .glass-signup {
 }
 
 .hub-tool-card {
-  background: var(--color-bg-primary);
-  border: 1px solid var(--color-border-primary);
+  background: var(--glass-bg);
+  border: 0.5px solid var(--glass-border);
   border-radius: var(--radius-16);
   padding: 24px;
   text-decoration: none;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
   display: flex;
   flex-direction: column;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .hub-tool-card:hover {
   border-color: var(--color-border-secondary);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-elevated);
 }
 
 .hub-tool-large {
@@ -508,16 +514,20 @@ html[data-theme="dark"] .glass-signup {
 }
 
 .hub-dashboard-card {
-  background: var(--color-bg-primary);
-  border: 1px solid var(--color-border-primary);
+  background: var(--glass-bg);
+  border: 0.5px solid var(--glass-border);
   border-radius: var(--radius-16);
   padding: 20px;
   text-decoration: none;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .hub-dashboard-card:hover {
   border-color: var(--color-border-secondary);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-elevated);
 }
 
 .hub-dashboard-header {
@@ -531,10 +541,8 @@ html[data-theme="dark"] .glass-signup {
   font-size: 11px;
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-quaternary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
   padding: 3px 8px;
-  border: 1px solid var(--color-border-primary);
+  background: var(--color-bg-secondary);
   border-radius: var(--radius-8);
 }
 
@@ -953,11 +961,13 @@ html[data-theme="dark"] .dominance-secondary {
 }
 
 .volume-metric-card {
-  background: var(--color-bg-primary);
-  border: 1px solid var(--color-border-primary);
+  background: var(--glass-bg);
+  border: 0.5px solid var(--glass-border);
   border-radius: var(--radius-16);
   padding: 24px;
   text-align: center;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .volume-metric-value {
@@ -975,9 +985,12 @@ html[data-theme="dark"] .dominance-secondary {
 }
 
 .volume-table-wrap {
-  border: 1px solid var(--color-border-primary);
+  border: 0.5px solid var(--glass-border);
   border-radius: var(--radius-16);
   overflow: hidden;
+  background: var(--glass-bg);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .volume-table-header {
@@ -989,8 +1002,6 @@ html[data-theme="dark"] .dominance-secondary {
   font-size: 12px;
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-quaternary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
 
 .volume-row {
@@ -1203,10 +1214,12 @@ html[data-theme="dark"] .dominance-secondary {
 /* ── Market Table (Grid Layout) ───────────────── */
 
 .mt-container {
-  border: 1px solid var(--color-border-primary);
+  border: 0.5px solid var(--glass-border);
   border-radius: 16px;
   overflow: hidden;
-  background: var(--color-bg-secondary);
+  background: var(--glass-bg);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .mt-header,
@@ -1222,8 +1235,6 @@ html[data-theme="dark"] .dominance-secondary {
   font-size: 11px;
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-quaternary);
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
   background: rgba(255, 255, 255, 0.02);
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
   user-select: none;
@@ -2015,8 +2026,6 @@ html[data-theme="dark"] .dominance-secondary {
   border-radius: 100px;
   background: var(--color-bg-tertiary);
   color: var(--color-text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
 
 .account-plan-badge.pro {
@@ -2369,18 +2378,21 @@ html[data-theme="dark"] .account-cancel-warning {
   display: flex;
   flex-direction: column;
   padding: 16px;
-  background: var(--color-bg-secondary);
-  border: 1px solid var(--color-border-primary);
+  background: var(--glass-bg);
+  border: 0.5px solid var(--glass-border);
   border-radius: var(--radius-lg);
   text-decoration: none;
   color: var(--color-text-primary);
-  transition: border-color 0.15s, transform 0.1s;
+  transition: border-color 0.15s, transform 0.2s, box-shadow 0.2s;
   cursor: pointer;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .explore-card:hover {
   border-color: var(--color-text-quaternary);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-elevated);
 }
 
 .explore-card-header {
@@ -2395,8 +2407,6 @@ html[data-theme="dark"] .account-cancel-warning {
   font-weight: 600;
   padding: 2px 7px;
   border-radius: 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
 }
 
 .badge-poly {
@@ -2503,10 +2513,12 @@ html[data-theme="dark"] .account-cancel-warning {
 }
 
 .whale-container {
-  background: var(--color-bg-secondary);
-  border: 1px solid var(--color-border-primary);
+  background: var(--glass-bg);
+  border: 0.5px solid var(--glass-border);
   border-radius: var(--radius-lg);
   overflow: hidden;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .whale-header {
@@ -2516,8 +2528,6 @@ html[data-theme="dark"] .account-cancel-warning {
   font-size: 11px;
   font-weight: 600;
   color: var(--color-text-quaternary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
   border-bottom: 1px solid var(--color-border-primary);
   background: var(--color-bg-tertiary);
 }
@@ -2631,8 +2641,6 @@ html[data-theme="dark"] .account-cancel-warning {
   border-radius: 3px;
   background: rgba(251, 191, 36, 0.15);
   color: #fbbf24;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
 }
 
 .whale-trader-name {
@@ -2666,7 +2674,6 @@ html[data-theme="dark"] .account-cancel-warning {
 
 .whale-score-mega {
   color: #f87171;
-  text-shadow: 0 0 8px rgba(248, 113, 113, 0.3);
 }
 
 .whale-empty {
