@@ -42,7 +42,7 @@ export default function TopArbYesterday() {
         <div className="best-opp best-opp-skeleton">
           <div className="best-opp-label">
             <span className="best-opp-dot" />
-            Top Arb of Yesterday
+            Yesterday's Top Arb
           </div>
           <div className="best-opp-skeleton-line best-opp-skeleton-wide" />
           <div className="best-opp-skeleton-prices">
@@ -61,7 +61,7 @@ export default function TopArbYesterday() {
         <div className="best-opp best-opp-empty">
           <div className="best-opp-label">
             <span className="best-opp-dot" />
-            Top Arb of Yesterday
+            Yesterday's Top Arb
           </div>
           <p className="best-opp-fallback">No high-confidence arb right now</p>
           {timeAgo && <span className="best-opp-updated">Updated {timeAgo}</span>}

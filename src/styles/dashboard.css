@@ -359,8 +359,6 @@ html[data-theme="dark"] .glass-signup {
   transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
   display: flex;
   flex-direction: column;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
 }
 
 .hub-tool-card:hover {
@@ -520,8 +518,6 @@ html[data-theme="dark"] .glass-signup {
   padding: 20px;
   text-decoration: none;
   transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
 }
 
 .hub-dashboard-card:hover {
@@ -966,8 +962,6 @@ html[data-theme="dark"] .dominance-secondary {
   border-radius: var(--radius-16);
   padding: 24px;
   text-align: center;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
 }
 
 .volume-metric-value {
@@ -989,8 +983,6 @@ html[data-theme="dark"] .dominance-secondary {
   border-radius: var(--radius-16);
   overflow: hidden;
   background: var(--glass-bg);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
 }
 
 .volume-table-header {
@@ -1218,8 +1210,6 @@ html[data-theme="dark"] .dominance-secondary {
   border-radius: 16px;
   overflow: hidden;
   background: var(--glass-bg);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
 }
 
 .mt-header,
@@ -2385,8 +2375,6 @@ html[data-theme="dark"] .account-cancel-warning {
   color: var(--color-text-primary);
   transition: border-color 0.15s, transform 0.2s, box-shadow 0.2s;
   cursor: pointer;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
 }
 
 .explore-card:hover {
@@ -2517,8 +2505,6 @@ html[data-theme="dark"] .account-cancel-warning {
   border: 0.5px solid var(--glass-border);
   border-radius: var(--radius-lg);
   overflow: hidden;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
 }
 
 .whale-header {

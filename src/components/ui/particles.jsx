@@ -58,16 +58,66 @@ const Particles = ({
   const canvasSize = useRef({ w: 0, h: 0 })
   const dpr = typeof window !== "undefined" ? window.devicePixelRatio : 1
 
+  const animationFrameRef = useRef(null)
+
   useEffect(() => {
     if (canvasRef.current) {
       context.current = canvasRef.current.getContext("2d")
     }
     initCanvas()
-    animate()
+    const runAnimation = () => {
+      clearContext()
+      circles.current.forEach((circle, i) => {
+        const edge = [
+          circle.x + circle.translateX - circle.size,
+          canvasSize.current.w - circle.x - circle.translateX - circle.size,
+          circle.y + circle.translateY - circle.size,
+          canvasSize.current.h - circle.y - circle.translateY - circle.size,
+        ]
+        const closestEdge = edge.reduce((a, b) => Math.min(a, b))
+        const remapClosestEdge = parseFloat(
+          remapValue(closestEdge, 0, 20, 0, 1).toFixed(2),
+        )
+        if (remapClosestEdge > 1) {
+          circle.alpha += 0.02
+          if (circle.alpha > circle.targetAlpha) {
+            circle.alpha = circle.targetAlpha
+          }
+        } else {
+          circle.alpha = circle.targetAlpha * remapClosestEdge
+        }
+        circle.x += circle.dx + vx
+        circle.y += circle.dy + vy
+        circle.translateX +=
+          (mouse.current.x / (staticity / circle.magnetism) - circle.translateX) /
+          ease
+        circle.translateY +=
+          (mouse.current.y / (staticity / circle.magnetism) - circle.translateY) /
+          ease
+
+        drawCircle(circle, true)
+
+        if (
+          circle.x < -circle.size ||
+          circle.x > canvasSize.current.w + circle.size ||
+          circle.y < -circle.size ||
+          circle.y > canvasSize.current.h + circle.size
+        ) {
+          circles.current.splice(i, 1)
+          const newCircle = circleParams()
+          drawCircle(newCircle)
+        }
+      })
+      animationFrameRef.current = window.requestAnimationFrame(runAnimation)
+    }
+    animationFrameRef.current = window.requestAnimationFrame(runAnimation)
     window.addEventListener("resize", initCanvas)
 
     return () => {
       window.removeEventListener("resize", initCanvas)
+      if (animationFrameRef.current) {
+        window.cancelAnimationFrame(animationFrameRef.current)
+      }
     }
   }, [color])
 
@@ -178,52 +228,6 @@ const Particles = ({
     const remapped =
       ((value - start1) * (end2 - start2)) / (end1 - start1) + start2
     return remapped > 0 ? remapped : 0
-  }
-
-  const animate = () => {
-    clearContext()
-    circles.current.forEach((circle, i) => {
-      const edge = [
-        circle.x + circle.translateX - circle.size,
-        canvasSize.current.w - circle.x - circle.translateX - circle.size,
-        circle.y + circle.translateY - circle.size,
-        canvasSize.current.h - circle.y - circle.translateY - circle.size,
-      ]
-      const closestEdge = edge.reduce((a, b) => Math.min(a, b))
-      const remapClosestEdge = parseFloat(
-        remapValue(closestEdge, 0, 20, 0, 1).toFixed(2),
-      )
-      if (remapClosestEdge > 1) {
-        circle.alpha += 0.02
-        if (circle.alpha > circle.targetAlpha) {
-          circle.alpha = circle.targetAlpha
-        }
-      } else {
-        circle.alpha = circle.targetAlpha * remapClosestEdge
-      }
-      circle.x += circle.dx + vx
-      circle.y += circle.dy + vy
-      circle.translateX +=
-        (mouse.current.x / (staticity / circle.magnetism) - circle.translateX) /
-        ease
-      circle.translateY +=
-        (mouse.current.y / (staticity / circle.magnetism) - circle.translateY) /
-        ease
-
-      drawCircle(circle, true)
-
-      if (
-        circle.x < -circle.size ||
-        circle.x > canvasSize.current.w + circle.size ||
-        circle.y < -circle.size ||
-        circle.y > canvasSize.current.h + circle.size
-      ) {
-        circles.current.splice(i, 1)
-        const newCircle = circleParams()
-        drawCircle(newCircle)
-      }
-    })
-    window.requestAnimationFrame(animate)
   }
 
   return (

@@ -251,8 +251,6 @@
   transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
   position: relative;
   overflow: hidden;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
 }
 
 .best-opp::before {
@@ -542,8 +540,6 @@ html[data-theme="dark"] .arb-btn-hover-label {
   border: 0.5px solid var(--glass-border);
   border-radius: 16px;
   padding: 24px 28px;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
@@ -627,8 +623,6 @@ html[data-theme="dark"] .arb-btn-hover-label {
   border: 0.5px solid var(--glass-border);
   border-radius: 16px;
   padding: 24px 28px;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
@@ -736,8 +730,6 @@ html[data-theme="dark"] .arb-btn-hover-label {
   border: 0.5px solid var(--glass-border);
   border-radius: 16px;
   padding: 24px;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
@@ -840,8 +832,6 @@ html[data-theme="dark"] .arb-btn-hover-label {
   border-radius: 16px;
   padding: 24px 28px;
   text-align: center;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
@@ -891,8 +881,6 @@ html[data-theme="dark"] .arb-btn-hover-label {
   border: 0.5px solid var(--glass-border);
   border-radius: 12px;
   overflow: hidden;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
 }
 
 .hub-whales-header-row {
@@ -1441,8 +1429,6 @@ html[data-theme="dark"] .arb-btn-hover-label {
   border: 0.5px solid var(--glass-border);
   display: flex;
   flex-direction: column;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
 }
 
 .feature-card-image {
@@ -1726,8 +1712,6 @@ html[data-theme="dark"] .arb-btn-hover-label {
   border: 0.5px solid var(--glass-border);
   display: flex;
   flex-direction: column;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
 }
 
 .pricing-card.featured {
