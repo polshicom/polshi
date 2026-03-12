@@ -1,5 +1,29 @@
 @import "tailwindcss";
 
+/* ── shadcn theme bridge ─────────────────────────── */
+/* Maps shadcn utility classes (bg-muted, text-foreground, etc.)
+   to Polshi's existing design tokens so shadcn components work. */
+@theme inline {
+  --color-background: var(--color-bg-primary);
+  --color-foreground: var(--color-text-primary);
+  --color-muted: var(--color-bg-tertiary);
+  --color-muted-foreground: var(--color-text-tertiary);
+  --color-primary: var(--color-brand-bg);
+  --color-primary-foreground: #ffffff;
+  --color-border: var(--color-border-primary);
+  --color-input: var(--color-border-primary);
+  --color-ring: var(--color-brand-bg);
+  --color-accent: var(--color-bg-secondary);
+  --color-accent-foreground: var(--color-text-primary);
+  --color-popover: var(--color-bg-primary);
+  --color-popover-foreground: var(--color-text-primary);
+  --color-secondary: var(--color-bg-secondary);
+  --color-secondary-foreground: var(--color-text-primary);
+  --color-destructive: #ef4444;
+  --color-destructive-foreground: #ffffff;
+  --radius: 10px;
+}
+
 :root {
   /* Light-first defaults */
   --color-bg-primary: #ffffff;
@@ -86,6 +110,12 @@ html[data-theme="dark"] {
   width: 16px;
   height: 16px;
 }
+
+/* Theme-conditional visibility */
+.light-only { display: block; }
+.dark-only { display: none; }
+html[data-theme="dark"] .light-only { display: none; }
+html[data-theme="dark"] .dark-only { display: block; }
 
 *, *::before, *::after {
   box-sizing: border-box;

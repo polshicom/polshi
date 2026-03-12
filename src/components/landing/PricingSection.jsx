@@ -1,92 +1,104 @@
 'use client'
 
-import { useState } from 'react'
+import { PricingSection as PricingCards } from '../ui/pricing'
+
+async function handleCheckout(plan) {
+  try {
+    const res = await fetch('/api/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan }),
+    })
+    const data = await res.json()
+    if (data.url) window.location.href = data.url
+  } catch {}
+}
+
+const PLANS = [
+  {
+    name: 'Free',
+    info: 'Get started — no credit card needed',
+    price: {
+      monthly: 0,
+      yearly: 0,
+    },
+    features: [
+      { text: '5 arbitrage opportunities' },
+      { text: '15-minute delayed prices' },
+      { text: 'AI-powered match verification', tooltip: 'Our AI verifies that matched markets across platforms are actually the same event' },
+      { text: 'Community match voting', tooltip: 'Help verify matches and earn community reputation' },
+    ],
+    btn: {
+      text: 'Start free',
+      href: '/signup',
+    },
+  },
+  {
+    highlighted: true,
+    name: 'Pro',
+    info: 'Full scanner + live whale feeds',
+    price: {
+      monthly: 19,
+      yearly: 180,
+    },
+    features: [
+      { text: 'Every arbitrage opportunity' },
+      { text: '15-second live prices', tooltip: 'Real-time price data sourced directly from each platform\'s API' },
+      { text: 'Full access to 3,800+ markets' },
+      { text: 'Whale trade feed', tooltip: 'Monitor large trades across both platforms with whale scores and repeat-buyer detection' },
+      { text: 'Watchlists with alerts' },
+      { text: 'Discord notifications', tooltip: 'Get pinged in Discord when new high-edge arbs appear' },
+    ],
+    btn: {
+      text: 'Go Pro',
+      href: '#',
+    },
+  },
+  {
+    comingSoon: true,
+    name: 'Sports',
+    info: 'Sportsbook arbitrage + everything in Pro',
+    price: {
+      monthly: 30,
+      yearly: 300,
+    },
+    features: [
+      { text: 'Everything in Pro' },
+      { text: 'FanDuel sportsbook arbs', tooltip: 'Scan FanDuel lines against prediction markets for cross-platform arbitrage' },
+      { text: 'DraftKings integration' },
+      { text: 'BetMGM integration' },
+      { text: 'Caesars Sportsbook integration' },
+      { text: 'Sports arb scanner', tooltip: 'Dedicated scanner that finds mispriced lines across sportsbooks and prediction markets' },
+    ],
+    btn: {
+      text: 'Coming Soon',
+      href: '#',
+    },
+  },
+]
 
 export default function PricingSection() {
-  const [yearly, setYearly] = useState(false)
-
-  async function handleCheckout() {
-    try {
-      const res = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: yearly ? 'yearly' : 'monthly' }),
-      })
-      const data = await res.json()
-      if (data.url) window.location.href = data.url
-    } catch {}
-  }
+  // Attach checkout handler to the Pro plan button
+  const plans = PLANS.map(plan => {
+    if (plan.name === 'Pro') {
+      return {
+        ...plan,
+        btn: {
+          ...plan.btn,
+          onClick: () => handleCheckout('monthly'),
+        },
+      }
+    }
+    return plan
+  })
 
   return (
     <section className="pricing-section" id="pricing">
-      <div className="pricing-header">
-        <div className="pricing-label">
-          <span className="pricing-dot"></span>
-          Pricing
-        </div>
-        <h2 className="pricing-heading">One arb pays for the month</h2>
-        <p className="pricing-subtitle">
-          Free tier gets you started. Pro unlocks the full scanner, live whale feeds, and every market on both platforms.
-        </p>
-      </div>
-
-      <div className="pricing-toggle">
-        <span
-          className={`pricing-toggle-label ${!yearly ? 'active' : ''}`}
-          onClick={() => setYearly(false)}
-        >
-          Monthly
-        </span>
-        <div
-          className={`pricing-toggle-switch ${yearly ? 'active' : ''}`}
-          onClick={() => setYearly(v => !v)}
-        >
-          <div className="pricing-toggle-knob"></div>
-        </div>
-        <span
-          className={`pricing-toggle-label ${yearly ? 'active' : ''}`}
-          onClick={() => setYearly(true)}
-        >
-          Yearly
-        </span>
-        <span className="pricing-save-badge">Save $48</span>
-      </div>
-
-      <div className="pricing-grid">
-        <div className="pricing-card">
-          <div className="pricing-card-name">Free</div>
-          <div className="pricing-card-price">$0<span>/mo</span></div>
-          <div className="pricing-card-note">No credit card needed</div>
-          <a href="/signup" className="pricing-card-btn secondary">Start free</a>
-          <ul className="pricing-features">
-            <li>5 arbitrage opportunities</li>
-            <li>15-minute delayed prices</li>
-            <li>AI-powered match verification</li>
-            <li>Community match voting</li>
-          </ul>
-        </div>
-
-        <div className="pricing-card featured">
-          <div className="pricing-card-name">Pro</div>
-          <div className="pricing-card-price">
-            {yearly ? '$15' : '$19'}<span>/mo</span>
-          </div>
-          <div className="pricing-card-note">
-            {yearly ? '$180/year · save $48' : '$19/month · billed monthly'}
-          </div>
-          <button className="pricing-card-btn primary" onClick={handleCheckout}>
-            Go Pro
-          </button>
-          <ul className="pricing-features">
-            <li>Every arbitrage opportunity</li>
-            <li>15-second live prices</li>
-            <li>Full access to 3,800+ markets</li>
-            <li>Whale trade feed</li>
-            <li>Watchlists with alerts</li>
-            <li>Discord notifications</li>
-          </ul>
-        </div>
-      </div>
+      <PricingCards
+        plans={plans}
+        heading="One arb pays for the month"
+        description="Free tier gets you started. Pro unlocks the full scanner, live whale feeds, and every market on both platforms."
+      />
     </section>
   )
 }
