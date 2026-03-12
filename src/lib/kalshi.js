@@ -1,12 +1,15 @@
-const KALSHI_EVENTS_URL = 'https://trading-api.kalshi.com/trade-api/v2/events'
+const KALSHI_EVENTS_URL = 'https://api.elections.kalshi.com/trade-api/v2/events'
 
-// Normalize a raw Kalshi price value to 0–1 probability.
-// Kalshi native scale is integer cents 0–100.
+// Normalize a raw Kalshi dollar-string price to 0–1 probability.
+// Kalshi API returns prices as dollar strings like "0.0900" (range 0–1).
 function toProb(val) {
-  if (val == null || isNaN(val)) return null
-  // Kalshi values are 0–100 integers (cents)
-  if (val >= 0 && val <= 100) return val / 100
-  return null // out of range
+  if (val == null) return null
+  const n = typeof val === 'string' ? parseFloat(val) : val
+  if (isNaN(n)) return null
+  if (n >= 0 && n <= 1) return n
+  // Legacy integer cents (0–100) fallback
+  if (n > 1 && n <= 100) return n / 100
+  return null
 }
 
 export async function fetchKalshiMarkets() {
@@ -44,9 +47,9 @@ export async function fetchKalshiMarkets() {
         // Skip settled/resolved markets
         if (mkt.result) continue
 
-        const rawBid = mkt.yes_bid
-        const rawAsk = mkt.yes_ask
-        const rawLast = mkt.last_price
+        const rawBid = mkt.yes_bid_dollars ?? mkt.yes_bid
+        const rawAsk = mkt.yes_ask_dollars ?? mkt.yes_ask
+        const rawLast = mkt.last_price_dollars ?? mkt.last_price
 
         const bid = toProb(rawBid)
         const ask = toProb(rawAsk)
@@ -98,9 +101,9 @@ export async function fetchKalshiMarkets() {
           question,
           prob,
           priceSource,
-          volume: mkt.volume || 0,
-          openInterest: mkt.open_interest || 0,
-          volume24h: mkt.volume_24h || 0,
+          volume: parseFloat(mkt.volume_fp || mkt.volume) || 0,
+          openInterest: parseFloat(mkt.open_interest_fp || mkt.open_interest) || 0,
+          volume24h: parseFloat(mkt.volume_24h_fp || mkt.volume_24h) || 0,
           category: event.category || '',
           endDate: mkt.close_time || mkt.expiration_time || null,
           description: mkt.rules_primary || '',

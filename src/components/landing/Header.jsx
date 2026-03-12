@@ -22,16 +22,13 @@ export default async function Header() {
       <div className="header-actions">
         <ThemeToggle />
         {user ? (
-          <>
-            <a href="/arbitrage" className="header-login">Dashboard</a>
-            <a href="/settings" style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--color-bg-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, overflow: 'hidden', textDecoration: 'none' }}>
+          <a href="/settings" style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--color-bg-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, overflow: 'hidden', textDecoration: 'none' }}>
               {user.image ? (
                 <img src={user.image} alt={user.name || 'User'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
                 user.name?.charAt(0)?.toUpperCase() || '?'
               )}
             </a>
-          </>
         ) : (
           <>
             <a href="/login" className="header-login">Log in</a>
