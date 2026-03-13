@@ -11,7 +11,6 @@ import {
 import { cn } from '../../lib/utils'
 import { CheckCircle, Star } from 'lucide-react'
 import Link from 'next/link'
-import { motion } from 'framer-motion'
 
 const frequencies = ['monthly', 'yearly']
 
@@ -32,12 +31,15 @@ export function PricingSection({
       )}
       {...props}
     >
-      <div className="mx-auto max-w-xl space-y-2">
-        <h2 className="text-center text-2xl font-bold tracking-tight md:text-3xl lg:text-4xl">
+      <div className="mx-auto max-w-xl space-y-3">
+        <h2
+          className="text-center font-bold tracking-tight"
+          style={{ fontSize: 'clamp(28px, 4vw, 40px)', color: 'var(--color-text-primary)', letterSpacing: '-0.02em' }}
+        >
           {heading}
         </h2>
         {description && (
-          <p className="text-muted-foreground text-center text-sm md:text-base">
+          <p className="text-center" style={{ fontSize: 15, color: 'var(--color-text-tertiary)', lineHeight: 1.6 }}>
             {description}
           </p>
         )}
@@ -46,7 +48,7 @@ export function PricingSection({
         frequency={frequency}
         setFrequency={setFrequency}
       />
-      <div className="mx-auto grid w-full max-w-5xl grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="mx-auto grid w-full grid-cols-1 gap-4 md:grid-cols-3" style={{ maxWidth: 960 }}>
         {plans.map((plan) => (
           <PricingCard plan={plan} key={plan.name} frequency={frequency} />
         ))}
@@ -63,27 +65,28 @@ export function PricingFrequencyToggle({
 }) {
   return (
     <div
-      className={cn(
-        'mx-auto flex w-fit rounded-full border border-border p-1',
-        className,
-      )}
-      style={{ background: 'var(--color-bg-secondary)' }}
+      className={cn('mx-auto flex w-fit rounded-full p-1', className)}
+      style={{
+        background: 'var(--color-bg-tertiary)',
+        border: '0.5px solid var(--glass-border)',
+      }}
       {...props}
     >
       {frequencies.map((freq) => (
         <button
           key={freq}
           onClick={() => setFrequency(freq)}
-          className="relative px-4 py-1 text-sm capitalize"
+          className="relative px-5 py-1.5 text-sm capitalize"
+          style={{
+            borderRadius: 9999,
+            fontWeight: frequency === freq ? 600 : 400,
+            color: frequency === freq ? 'var(--color-text-primary)' : 'var(--color-text-tertiary)',
+            background: frequency === freq ? 'var(--color-bg-primary)' : 'transparent',
+            boxShadow: frequency === freq ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+            transition: 'all 0.2s',
+          }}
         >
-          <span className="relative z-10">{freq}</span>
-          {frequency === freq && (
-            <motion.span
-              layoutId="frequency"
-              transition={{ type: 'spring', duration: 0.4 }}
-              className="bg-foreground absolute inset-0 z-0 rounded-full mix-blend-difference"
-            />
-          )}
+          {freq}
         </button>
       ))}
     </div>
@@ -99,91 +102,84 @@ export function PricingCard({
   return (
     <div
       key={plan.name}
-      className={cn(
-        'relative flex w-full flex-col rounded-lg border border-border',
-        plan.comingSoon && 'opacity-80',
-        className,
-      )}
+      className={cn('relative flex w-full flex-col rounded-2xl', className)}
+      style={{
+        background: 'var(--glass-bg)',
+        border: plan.highlighted ? '1.5px solid var(--color-brand-bg)' : '0.5px solid var(--glass-border)',
+        opacity: plan.comingSoon ? 0.7 : 1,
+        transition: 'transform 0.2s, box-shadow 0.2s',
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = 'var(--shadow-elevated)' }}
+      onMouseLeave={(e) => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '' }}
       {...props}
     >
-      {plan.highlighted && (
-        <BorderTrail
-          style={{
-            boxShadow:
-              '0px 0px 60px 30px rgb(255 255 255 / 50%), 0 0 100px 60px rgb(0 0 0 / 50%), 0 0 140px 90px rgb(0 0 0 / 50%)',
-          }}
-          size={100}
-        />
-      )}
+      {/* Header */}
       <div
-        className={cn(
-          'rounded-t-lg border-b border-border p-4',
-          plan.highlighted ? 'bg-muted/40' : 'bg-muted/20',
-        )}
+        className="rounded-t-2xl p-5"
+        style={{ borderBottom: '0.5px solid var(--glass-border)' }}
       >
-        <div className="absolute top-2 right-2 z-10 flex items-center gap-2">
-          {plan.comingSoon && (
-            <p className="flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-xs font-semibold"
-               style={{ background: 'var(--color-bg-primary)', color: 'var(--color-text-tertiary)' }}>
-              Coming Soon
-            </p>
-          )}
-          {plan.highlighted && (
-            <p className="flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-xs"
-               style={{ background: 'var(--color-bg-primary)' }}>
-              <Star className="h-3 w-3 fill-current" />
-              Popular
-            </p>
-          )}
-          {frequency === 'yearly' && plan.price.yearly > 0 && (
-            <p className="bg-primary text-primary-foreground flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs">
-              {Math.round(
-                ((plan.price.monthly * 12 - plan.price.yearly) /
-                  plan.price.monthly /
-                  12) *
-                  100,
-              )}
-              % off
-            </p>
-          )}
+        <div className="flex items-start justify-between mb-1">
+          <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--color-text-primary)' }}>
+            {plan.name}
+          </div>
+          <div className="flex items-center gap-2">
+            {plan.comingSoon && (
+              <span
+                className="rounded-md px-2 py-0.5 text-xs font-semibold"
+                style={{ background: 'var(--color-bg-tertiary)', color: 'var(--color-text-tertiary)', border: '0.5px solid var(--glass-border)' }}
+              >
+                Coming Soon
+              </span>
+            )}
+            {plan.highlighted && (
+              <span
+                className="flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold"
+                style={{ background: 'rgba(94, 106, 210, 0.12)', color: 'var(--color-brand-bg)' }}
+              >
+                <Star className="h-3 w-3 fill-current" />
+                Popular
+              </span>
+            )}
+          </div>
         </div>
-
-        <div className="text-lg font-medium">{plan.name}</div>
-        <p className="text-muted-foreground text-sm font-normal">{plan.info}</p>
-        <h3 className="mt-2 flex items-end gap-1">
-          <span className="text-3xl font-bold">
+        <p style={{ fontSize: 13, color: 'var(--color-text-tertiary)', marginBottom: 12 }}>
+          {plan.info}
+        </p>
+        <div className="flex items-end gap-1">
+          <span style={{ fontSize: 36, fontWeight: 700, color: 'var(--color-text-primary)', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
             ${frequency === 'yearly' && plan.price.yearly > 0
               ? Math.round(plan.price.yearly / 12)
               : plan.price.monthly}
           </span>
-          <span className="text-muted-foreground">
-            {plan.price.monthly > 0
-              ? '/' + (frequency === 'monthly' ? 'month' : 'month')
-              : ''}
+          <span style={{ fontSize: 14, color: 'var(--color-text-quaternary)', paddingBottom: 2 }}>
+            {plan.price.monthly > 0 ? '/month' : ''}
           </span>
-        </h3>
+        </div>
         {frequency === 'yearly' && plan.price.yearly > 0 && (
-          <p className="text-muted-foreground mt-1 text-xs">
+          <p style={{ fontSize: 12, color: 'var(--color-text-quaternary)', marginTop: 4 }}>
             ${plan.price.yearly}/year
+            <span style={{ color: '#10b981', marginLeft: 8, fontWeight: 600 }}>
+              Save {Math.round(((plan.price.monthly * 12 - plan.price.yearly) / (plan.price.monthly * 12)) * 100)}%
+            </span>
           </p>
         )}
       </div>
-      <div
-        className={cn(
-          'text-muted-foreground space-y-4 px-4 py-6 text-sm flex-1',
-          plan.highlighted && 'bg-muted/10',
-        )}
-      >
+
+      {/* Features */}
+      <div className="space-y-3 px-5 py-5 flex-1" style={{ fontSize: 14 }}>
         {plan.features.map((feature, index) => (
-          <div key={index} className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4 shrink-0" style={{ color: 'var(--color-text-primary)' }} />
+          <div key={index} className="flex items-center gap-2.5">
+            <CheckCircle
+              className="h-4 w-4 shrink-0"
+              style={{ color: plan.highlighted ? '#10b981' : 'var(--color-text-quaternary)' }}
+            />
             <TooltipProvider>
               <Tooltip delayDuration={0}>
                 <TooltipTrigger asChild>
                   <p
+                    style={{ color: 'var(--color-text-secondary)' }}
                     className={cn(
-                      feature.tooltip &&
-                        'cursor-pointer border-b border-dashed border-border',
+                      feature.tooltip && 'cursor-pointer border-b border-dashed',
                     )}
                   >
                     {feature.text}
@@ -199,12 +195,9 @@ export function PricingCard({
           </div>
         ))}
       </div>
-      <div
-        className={cn(
-          'mt-auto w-full border-t border-border p-3',
-          plan.highlighted && 'bg-muted/40',
-        )}
-      >
+
+      {/* CTA */}
+      <div className="mt-auto w-full p-4" style={{ borderTop: '0.5px solid var(--glass-border)' }}>
         {plan.comingSoon ? (
           <Button className="w-full" variant="outline" disabled>
             Coming Soon
@@ -230,41 +223,3 @@ export function PricingCard({
     </div>
   )
 }
-
-function BorderTrail({
-  className,
-  size = 60,
-  transition,
-  delay,
-  onAnimationComplete,
-  style,
-}) {
-  const BASE_TRANSITION = {
-    repeat: Infinity,
-    duration: 5,
-    ease: 'linear',
-  }
-
-  return (
-    <div className="pointer-events-none absolute inset-0 rounded-[inherit] border border-transparent [mask-clip:padding-box,border-box] [mask-composite:intersect] [mask-image:linear-gradient(transparent,transparent),linear-gradient(#000,#000)]">
-      <motion.div
-        className={cn('absolute aspect-square bg-zinc-500', className)}
-        style={{
-          width: size,
-          offsetPath: `rect(0 auto auto 0 round ${size}px)`,
-          ...style,
-        }}
-        animate={{
-          offsetDistance: ['0%', '100%'],
-        }}
-        transition={{
-          ...(transition ?? BASE_TRANSITION),
-          delay: delay,
-        }}
-        onAnimationComplete={onAnimationComplete}
-      />
-    </div>
-  )
-}
-
-export { BorderTrail }
