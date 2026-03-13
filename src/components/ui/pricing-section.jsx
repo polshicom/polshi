@@ -72,19 +72,19 @@ function PricingSwitch({ onSwitch }) {
   }
 
   return (
-    <div className="flex justify-center">
-      <div className="relative z-10 mx-auto flex w-fit rounded-full bg-neutral-900 border border-gray-700 p-1">
+    <div className="flex justify-center pt-4">
+      <div className="relative z-10 mx-auto flex w-fit rounded-full bg-neutral-900 border border-neutral-700 p-1.5">
         <button
           onClick={() => handleSwitch("0")}
           className={cn(
-            "relative z-10 w-fit h-10 rounded-full sm:px-6 px-3 sm:py-2 py-1 font-medium transition-colors",
-            selected === "0" ? "text-white" : "text-gray-200",
+            "relative z-10 h-12 rounded-full px-8 py-2 text-base font-medium transition-colors",
+            selected === "0" ? "text-white" : "text-gray-400",
           )}
         >
           {selected === "0" && (
             <motion.span
               layoutId="switch"
-              className="absolute top-0 left-0 h-10 w-full rounded-full border-4 shadow-sm shadow-blue-600 border-blue-600 bg-gradient-to-t from-blue-500 to-blue-600"
+              className="absolute inset-0 rounded-full border-2 shadow-sm shadow-blue-600 border-blue-600 bg-gradient-to-t from-blue-500 to-blue-600"
               transition={{ type: "spring", stiffness: 500, damping: 30 }}
             />
           )}
@@ -94,18 +94,18 @@ function PricingSwitch({ onSwitch }) {
         <button
           onClick={() => handleSwitch("1")}
           className={cn(
-            "relative z-10 w-fit h-10 flex-shrink-0 rounded-full sm:px-6 px-3 sm:py-2 py-1 font-medium transition-colors",
-            selected === "1" ? "text-white" : "text-gray-200",
+            "relative z-10 h-12 rounded-full px-8 py-2 text-base font-medium transition-colors",
+            selected === "1" ? "text-white" : "text-gray-400",
           )}
         >
           {selected === "1" && (
             <motion.span
               layoutId="switch"
-              className="absolute top-0 left-0 h-10 w-full rounded-full border-4 shadow-sm shadow-blue-600 border-blue-600 bg-gradient-to-t from-blue-500 to-blue-600"
+              className="absolute inset-0 rounded-full border-2 shadow-sm shadow-blue-600 border-blue-600 bg-gradient-to-t from-blue-500 to-blue-600"
               transition={{ type: "spring", stiffness: 500, damping: 30 }}
             />
           )}
-          <span className="relative flex items-center gap-2">Yearly</span>
+          <span className="relative">Yearly</span>
         </button>
       </div>
     </div>
@@ -181,8 +181,8 @@ export default function PricingSection() {
         </div>
       </TimelineContent>
 
-      <article className="text-center mb-6 pt-32 max-w-3xl mx-auto space-y-2 relative z-50">
-        <h2 className="text-4xl font-medium text-white">
+      <article className="text-center mb-10 pt-32 max-w-3xl mx-auto space-y-4 relative z-50">
+        <h2 className="text-4xl md:text-5xl font-medium text-white">
           <VerticalCutReveal
             splitBy="words"
             staggerDuration={0.15}
@@ -205,7 +205,7 @@ export default function PricingSection() {
           animationNum={0}
           timelineRef={pricingRef}
           customVariants={revealVariants}
-          className="text-gray-300"
+          className="text-gray-400 text-lg"
         >
           Free tier gets you started. Pro unlocks the full scanner, live whale
           feeds, and every market on both platforms.
@@ -231,7 +231,7 @@ export default function PricingSection() {
         }}
       />
 
-      <div className="grid md:grid-cols-3 max-w-5xl gap-4 py-6 mx-auto px-4">
+      <div className="grid md:grid-cols-3 max-w-5xl gap-6 py-6 mx-auto px-6">
         {plans.map((plan, index) => (
           <TimelineContent
             key={plan.name}
@@ -242,64 +242,64 @@ export default function PricingSection() {
           >
             <Card
               className={cn(
-                "relative text-white border-neutral-800",
+                "relative text-white border-neutral-700/60",
                 plan.popular
-                  ? "bg-gradient-to-r from-neutral-900 via-neutral-800 to-neutral-900 shadow-[0px_-13px_300px_0px_#0900ff] z-20"
-                  : "bg-gradient-to-r from-neutral-900 via-neutral-800 to-neutral-900 z-10"
+                  ? "bg-gradient-to-b from-neutral-800/80 via-neutral-900 to-neutral-900 shadow-[0px_0px_80px_-20px_rgba(59,130,246,0.5)] z-20"
+                  : "bg-gradient-to-b from-neutral-800/60 via-neutral-900 to-neutral-900 z-10"
               )}
             >
-              <CardHeader className="text-left">
+              <CardHeader className="text-left p-8 pb-0">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-3xl mb-2">{plan.name}</h3>
+                  <h3 className="text-2xl font-medium">{plan.name}</h3>
                   {plan.comingSoon && (
-                    <span className="text-xs font-medium bg-neutral-700 text-gray-300 px-2 py-1 rounded-full">
+                    <span className="text-xs font-medium bg-neutral-700 text-gray-300 px-3 py-1 rounded-full">
                       Coming Soon
                     </span>
                   )}
                 </div>
-                <div className="flex items-baseline">
-                  <span className="text-4xl font-semibold">
+                <div className="flex items-baseline mt-4">
+                  <span className="text-5xl font-semibold">
                     $
                     <NumberFlow
                       value={isYearly ? plan.yearlyPrice : plan.price}
-                      className="text-4xl font-semibold"
+                      className="text-5xl font-semibold"
                     />
                   </span>
                   {plan.price > 0 && (
-                    <span className="text-gray-300 ml-1">
+                    <span className="text-gray-400 ml-2 text-lg">
                       /{isYearly ? "year" : "month"}
                     </span>
                   )}
                 </div>
-                <p className="text-sm text-gray-300 mb-4">
+                <p className="text-sm text-gray-400 mt-3">
                   {plan.description}
                 </p>
               </CardHeader>
 
-              <CardContent className="pt-0">
+              <CardContent className="p-8 pt-6">
                 <button
                   className={cn(
-                    "w-full mb-6 p-4 text-xl rounded-xl",
+                    "w-full py-4 text-lg font-medium rounded-xl mt-2 mb-2",
                     plan.popular
-                      ? "bg-gradient-to-t from-blue-500 to-blue-600 shadow-lg shadow-blue-800 border border-blue-500 text-white"
-                      : "bg-gradient-to-t from-neutral-950 to-neutral-600 shadow-lg shadow-neutral-900 border border-neutral-800 text-white"
+                      ? "bg-gradient-to-t from-blue-600 to-blue-500 shadow-lg shadow-blue-900/40 border border-blue-500 text-white"
+                      : "bg-gradient-to-t from-neutral-900 to-neutral-700 shadow-lg shadow-neutral-900/50 border border-neutral-700 text-white"
                   )}
                   disabled={plan.comingSoon}
                 >
                   {plan.buttonText}
                 </button>
 
-                <div className="space-y-3 pt-4 border-t border-neutral-700">
-                  <h4 className="font-medium text-base mb-3">
+                <div className="space-y-3 pt-6 mt-6 border-t border-neutral-700/60">
+                  <h4 className="font-medium text-sm mb-4">
                     {plan.includes[0]}
                   </h4>
-                  <ul className="space-y-2">
+                  <ul className="space-y-3">
                     {plan.includes.slice(1).map((feature, featureIndex) => (
                       <li
                         key={featureIndex}
-                        className="flex items-center gap-2"
+                        className="flex items-center gap-3"
                       >
-                        <span className="h-2.5 w-2.5 bg-neutral-500 rounded-full grid place-content-center"></span>
+                        <span className="h-2 w-2 bg-neutral-500 rounded-full flex-shrink-0"></span>
                         <span className="text-sm text-gray-300">
                           {feature}
                         </span>
