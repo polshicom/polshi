@@ -21,10 +21,6 @@
   --color-secondary-foreground: var(--color-text-primary);
   --color-destructive: #ef4444;
   --color-destructive-foreground: #ffffff;
-  --color-card: var(--card-bg);
-  --color-card-foreground: var(--color-text-primary);
-  --color-sparkles-color: var(--sparkles-color);
-  --color-gradient-color: var(--gradient-color);
   --radius: 10px;
 }
 
@@ -67,8 +63,6 @@
   --glass-border: rgba(0,0,0,0.06);
   --card-bg: var(--color-bg-primary);
   --card-border: var(--color-border-primary);
-  --gradient-color: #8350e8;
-  --sparkles-color: #8350e8;
 }
 
 html[data-theme="dark"] {
@@ -95,8 +89,6 @@ html[data-theme="dark"] {
   --glass-border: rgba(255,255,255,0.06);
   --card-bg: #0a0a0c;
   --card-border: rgba(255,255,255,0.06);
-  --gradient-color: #8350e8;
-  --sparkles-color: #ffffff;
 }
 
 .theme-toggle {
