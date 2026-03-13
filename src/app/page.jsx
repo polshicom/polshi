@@ -1,9 +1,11 @@
 import Header from '../components/landing/Header'
 import Hero from '../components/home/Hero'
+import WhyPolshi from '../components/home/WhyPolshi'
 import MarketDominance from '../components/home/MarketDominance'
 import TopArbYesterday from '../components/home/TopArbYesterday'
 import WhaleYesterday from '../components/home/WhaleYesterday'
 import TopWhales from '../components/home/TopWhales'
+import ArbPerformance from '../components/home/ArbPerformance'
 import ScannerPreview from '../components/home/ScannerPreview'
 import SportsbookComingSoon from '../components/home/SportsbookComingSoon'
 import StatusBar from '../components/home/StatusBar'
@@ -35,10 +37,12 @@ export default function Home() {
         />
         <main style={{ position: 'relative', zIndex: 1 }}>
           <Hero />
+          <WhyPolshi />
           <MarketDominance />
           <TopArbYesterday />
           <WhaleYesterday />
           <TopWhales />
+          <ArbPerformance />
           <ScannerPreview />
           <SportsbookComingSoon />
         </main>

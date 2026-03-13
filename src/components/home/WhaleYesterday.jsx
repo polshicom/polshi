@@ -44,7 +44,7 @@ export default function WhaleYesterday() {
       <div className="whale-yesterday-card">
         <div className="whale-yesterday-label">
           <span className="whale-yesterday-icon">&#x1F40B;</span>
-          Whale of the Day
+          {whale.dollarValue >= 5000 ? 'Whale of the Day' : 'Largest Trade Today'}
         </div>
         <h3 className="whale-yesterday-market">{whale.market}</h3>
         <div className="whale-yesterday-details">

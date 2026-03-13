@@ -55,6 +55,7 @@ export default function MarketDominance() {
     <section className="dominance-section">
       <div className="dominance-card">
         <h2 className="dominance-heading">Market Coverage</h2>
+        <p className="dominance-subtitle">Scanning {data.scanned.toLocaleString()} markets across both platforms</p>
         <div className="dominance-grid">
           <div className="dominance-col">
             <span className="badge-polymarket">Polymarket</span>
@@ -73,6 +74,23 @@ export default function MarketDominance() {
             <span className="dominance-vol">{data.kalshiVol}</span>
           </div>
         </div>
+        {(data.polyCount + data.kalshiCount > 0) && (() => {
+          const total = data.polyCount + data.kalshiCount
+          const polyPct = Math.round((data.polyCount / total) * 100)
+          const kalshiPct = 100 - polyPct
+          return (
+            <div className="dominance-bar-wrap">
+              <div className="dominance-bar-labels">
+                <span className="poly-label">Polymarket {polyPct}%</span>
+                <span className="kalshi-label">Kalshi {kalshiPct}%</span>
+              </div>
+              <div className="dominance-bar">
+                <div className="dominance-bar-poly" style={{ width: `${polyPct}%` }} />
+                <div className="dominance-bar-kalshi" style={{ width: `${kalshiPct}%` }} />
+              </div>
+            </div>
+          )
+        })()}
       </div>
     </section>
   )
