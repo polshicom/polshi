@@ -1,10 +1,6 @@
 import { NextResponse } from 'next/server'
-import { cacheGetWithMeta, cacheSet } from '../../../lib/cache'
-import { fetchAllTrades } from '../../../lib/trades'
-import { ensureWorkerRunning, waitForFirstCycle } from '../../../lib/scanner-worker'
-
-const CACHE_KEY = 'whale_trades'
-const CACHE_TTL = 60_000 // 60 seconds
+import { cacheGetWithMeta } from '../../../lib/cache'
+import { ensureWorkerRunning, waitForFirstCycle, WHALE_TRADES_KEY } from '../../../lib/scanner-worker'
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url)
@@ -15,19 +11,8 @@ export async function GET(request) {
   await waitForFirstCycle()
 
   try {
-    const cached = cacheGetWithMeta(CACHE_KEY)
-    let trades = cached.value
-
-    if (!trades) {
-      // Cold start or cache fully expired — fetch and cache
-      trades = await fetchAllTrades()
-      cacheSet(CACHE_KEY, trades, CACHE_TTL)
-    } else if (cached.stale) {
-      // Serve stale data immediately, refresh in background
-      fetchAllTrades()
-        .then(fresh => cacheSet(CACHE_KEY, fresh, CACHE_TTL))
-        .catch(() => {})
-    }
+    const cached = cacheGetWithMeta(WHALE_TRADES_KEY)
+    const trades = cached.value || []
 
     let filtered = trades
 

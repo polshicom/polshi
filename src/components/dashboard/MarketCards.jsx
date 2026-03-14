@@ -22,18 +22,17 @@ export default function MarketCards({ initialMarkets, categories: initialCategor
   const [markets, setMarkets] = useState(initialMarkets || [])
   const [categories, setCategories] = useState(initialCategories || [])
   const [search, setSearch] = useState('')
-  const [platform, setPlatform] = useState('all')
   const [category, setCategory] = useState('all')
-  const [sortBy, setSortBy] = useState('volume')
+  const [sortBy, setSortBy] = useState('default')
   const [loading, setLoading] = useState(false)
 
   const fetchMarkets = useCallback(async () => {
     setLoading(true)
     try {
       const limit = isPro ? '1000' : '300'
-      const params = new URLSearchParams({ platform, category, sort: sortBy, limit })
+      const params = new URLSearchParams({ category, sort: sortBy, limit })
       if (search) params.set('q', search)
-      const res = await fetch(`/api/explore?${params}`)
+      const res = await fetch(`/api/explore-matched?${params}`)
       const data = await res.json()
       if (data.markets) {
         setMarkets(data.markets)
@@ -41,7 +40,7 @@ export default function MarketCards({ initialMarkets, categories: initialCategor
       }
     } catch {}
     setLoading(false)
-  }, [platform, category, sortBy, search, isPro])
+  }, [category, sortBy, search, isPro])
 
   useEffect(() => {
     const timeout = setTimeout(fetchMarkets, 300)
@@ -54,21 +53,10 @@ export default function MarketCards({ initialMarkets, categories: initialCategor
         <input
           type="text"
           className="explore-search"
-          placeholder="Search all markets..."
+          placeholder="Search matched markets..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <div className="explore-toggles">
-          {['all', 'polymarket', 'kalshi'].map(p => (
-            <button
-              key={p}
-              className={`explore-toggle ${platform === p ? 'active' : ''}`}
-              onClick={() => setPlatform(p)}
-            >
-              {p === 'all' ? 'All' : p === 'polymarket' ? 'Polymarket' : 'Kalshi'}
-            </button>
-          ))}
-        </div>
         <select
           className="explore-select"
           value={category}
@@ -84,58 +72,75 @@ export default function MarketCards({ initialMarkets, categories: initialCategor
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value)}
         >
-          <option value="volume">Sort: Volume</option>
-          <option value="prob">Sort: Probability</option>
+          <option value="default">Sort: Best Match</option>
+          <option value="edge">Sort: Spread</option>
           <option value="endDate">Sort: Ending Soon</option>
         </select>
       </div>
 
       <div className="explore-meta">
-        {loading ? 'Loading...' : `${markets.length} markets`}
+        {loading ? 'Loading...' : `${markets.length} matched markets`}
       </div>
 
       <div className="explore-grid">
         {markets.map((m, i) => (
-          <MarketCard key={i} market={m} />
+          <MatchedMarketCard key={i} market={m} />
         ))}
         {!loading && markets.length === 0 && (
-          <div className="explore-empty">No markets found</div>
+          <div className="explore-empty">No matched markets found</div>
         )}
       </div>
     </>
   )
 }
 
-function MarketCard({ market: m }) {
-  const platformClass = m.platform === 'polymarket' ? 'badge-poly' : 'badge-kalshi'
+function MatchedMarketCard({ market: m }) {
   const endDate = formatEndDate(m.endDate)
 
   return (
-    <a
-      href={m.url || '#'}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="explore-card"
-    >
+    <div className="explore-card">
       <div className="explore-card-header">
-        <span className={`explore-badge ${platformClass}`}>
-          {m.platform === 'polymarket' ? 'Polymarket' : 'Kalshi'}
-        </span>
+        <span className="explore-badge badge-poly">Polymarket</span>
+        <span className="explore-badge badge-kalshi">Kalshi</span>
         <span className="explore-category">{m.category}</span>
       </div>
 
       <div className="explore-card-question">{m.question}</div>
 
+      <div className="explore-card-prices">
+        <div className="explore-price-row">
+          <span className="explore-price-platform badge-poly-text">Poly</span>
+          <span className="explore-price-value">{m.polymarket}¢</span>
+        </div>
+        <div className="explore-price-row">
+          <span className="explore-price-platform badge-kalshi-text">Kalshi</span>
+          <span className="explore-price-value">{m.kalshi}¢</span>
+        </div>
+      </div>
+
       <div className="explore-card-footer">
-        <div className="explore-prob">
-          <span className="explore-prob-value">{m.prob}%</span>
-          <span className="explore-prob-label">chance</span>
+        <div className="explore-spread">
+          <span className="explore-spread-value">{m.edge}¢</span>
+          <span className="explore-spread-label">spread</span>
         </div>
         <div className="explore-card-meta">
-          <span className="explore-volume">{m.volumeFormatted}</span>
+          <span className="explore-volume">{m.volume}</span>
           {endDate && <span className="explore-end">{endDate}</span>}
         </div>
       </div>
-    </a>
+
+      <div className="explore-card-links">
+        {m.polymarketUrl && (
+          <a href={m.polymarketUrl} target="_blank" rel="noopener noreferrer" className="explore-link badge-poly-text">
+            Polymarket ↗
+          </a>
+        )}
+        {m.kalshiUrl && (
+          <a href={m.kalshiUrl} target="_blank" rel="noopener noreferrer" className="explore-link badge-kalshi-text">
+            Kalshi ↗
+          </a>
+        )}
+      </div>
+    </div>
   )
 }
