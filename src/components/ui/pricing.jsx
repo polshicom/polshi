@@ -26,12 +26,12 @@ export function PricingSection({
   return (
     <div
       className={cn(
-        'flex w-full flex-col items-center justify-center space-y-5 p-4',
+        'flex w-full flex-col items-center justify-center space-y-8 px-6 py-16',
         className,
       )}
       {...props}
     >
-      <div className="mx-auto max-w-xl space-y-3">
+      <div className="mx-auto max-w-2xl space-y-3">
         <h2
           className="text-center font-bold tracking-tight"
           style={{ fontSize: 'clamp(28px, 4vw, 40px)', color: 'var(--color-text-primary)', letterSpacing: '-0.02em' }}
@@ -48,7 +48,7 @@ export function PricingSection({
         frequency={frequency}
         setFrequency={setFrequency}
       />
-      <div className="mx-auto grid w-full grid-cols-1 gap-4 md:grid-cols-3" style={{ maxWidth: 960 }}>
+      <div className="mx-auto grid w-full grid-cols-1 gap-5 md:grid-cols-3" style={{ maxWidth: 1100 }}>
         {plans.map((plan) => (
           <PricingCard plan={plan} key={plan.name} frequency={frequency} />
         ))}
@@ -65,10 +65,10 @@ export function PricingFrequencyToggle({
 }) {
   return (
     <div
-      className={cn('mx-auto flex w-fit rounded-full p-1', className)}
+      className={cn('mx-auto flex w-fit rounded-full p-1 gap-1', className)}
       style={{
         background: 'var(--color-bg-tertiary)',
-        border: '0.5px solid var(--glass-border)',
+        border: '1px solid var(--glass-border)',
       }}
       {...props}
     >
@@ -76,7 +76,7 @@ export function PricingFrequencyToggle({
         <button
           key={freq}
           onClick={() => setFrequency(freq)}
-          className="relative px-5 py-1.5 text-sm capitalize"
+          className="relative px-6 py-2 text-sm capitalize"
           style={{
             borderRadius: 9999,
             fontWeight: frequency === freq ? 600 : 400,
@@ -105,7 +105,7 @@ export function PricingCard({
       className={cn('relative flex w-full flex-col rounded-2xl', className)}
       style={{
         background: 'var(--glass-bg)',
-        border: plan.highlighted ? '1.5px solid var(--color-brand-bg)' : '0.5px solid var(--glass-border)',
+        border: plan.highlighted ? '1.5px solid var(--color-brand-bg)' : '1px solid var(--glass-border)',
         opacity: plan.comingSoon ? 0.7 : 1,
         transition: 'transform 0.2s, box-shadow 0.2s',
       }}
@@ -115,25 +115,25 @@ export function PricingCard({
     >
       {/* Header */}
       <div
-        className="rounded-t-2xl p-5"
-        style={{ borderBottom: '0.5px solid var(--glass-border)' }}
+        className="rounded-t-2xl p-6"
+        style={{ borderBottom: '1px solid var(--glass-border)' }}
       >
-        <div className="flex items-start justify-between mb-1">
-          <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--color-text-primary)' }}>
+        <div className="flex items-start justify-between mb-2">
+          <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--color-text-primary)' }}>
             {plan.name}
           </div>
           <div className="flex items-center gap-2">
             {plan.comingSoon && (
               <span
-                className="rounded-md px-2 py-0.5 text-xs font-semibold"
-                style={{ background: 'var(--color-bg-tertiary)', color: 'var(--color-text-tertiary)', border: '0.5px solid var(--glass-border)' }}
+                className="rounded-md px-2.5 py-0.5 text-xs font-semibold"
+                style={{ background: 'var(--color-bg-tertiary)', color: 'var(--color-text-tertiary)', border: '1px solid var(--glass-border)' }}
               >
                 Coming Soon
               </span>
             )}
             {plan.highlighted && (
               <span
-                className="flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold"
+                className="flex items-center gap-1 rounded-md px-2.5 py-0.5 text-xs font-semibold"
                 style={{ background: 'rgba(94, 106, 210, 0.12)', color: 'var(--color-brand-bg)' }}
               >
                 <Star className="h-3 w-3 fill-current" />
@@ -142,21 +142,21 @@ export function PricingCard({
             )}
           </div>
         </div>
-        <p style={{ fontSize: 13, color: 'var(--color-text-tertiary)', marginBottom: 12 }}>
+        <p style={{ fontSize: 14, color: 'var(--color-text-tertiary)', marginBottom: 16, lineHeight: 1.5 }}>
           {plan.info}
         </p>
-        <div className="flex items-end gap-1">
-          <span style={{ fontSize: 36, fontWeight: 700, color: 'var(--color-text-primary)', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+        <div className="flex items-end gap-1.5">
+          <span style={{ fontSize: 40, fontWeight: 700, color: 'var(--color-text-primary)', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
             ${frequency === 'yearly' && plan.price.yearly > 0
               ? Math.round(plan.price.yearly / 12)
               : plan.price.monthly}
           </span>
-          <span style={{ fontSize: 14, color: 'var(--color-text-quaternary)', paddingBottom: 2 }}>
+          <span style={{ fontSize: 14, color: 'var(--color-text-quaternary)', paddingBottom: 4 }}>
             {plan.price.monthly > 0 ? '/month' : ''}
           </span>
         </div>
         {frequency === 'yearly' && plan.price.yearly > 0 && (
-          <p style={{ fontSize: 12, color: 'var(--color-text-quaternary)', marginTop: 4 }}>
+          <p style={{ fontSize: 13, color: 'var(--color-text-quaternary)', marginTop: 6 }}>
             ${plan.price.yearly}/year
             <span style={{ color: '#10b981', marginLeft: 8, fontWeight: 600 }}>
               Save {Math.round(((plan.price.monthly * 12 - plan.price.yearly) / (plan.price.monthly * 12)) * 100)}%
@@ -166,46 +166,49 @@ export function PricingCard({
       </div>
 
       {/* Features */}
-      <div className="space-y-3 px-5 py-5 flex-1" style={{ fontSize: 14 }}>
+      <div className="space-y-3.5 px-6 py-6 flex-1" style={{ fontSize: 14 }}>
         {plan.features.map((feature, index) => (
-          <div key={index} className="flex items-center gap-2.5">
+          <div key={index} className="flex items-start gap-3">
             <CheckCircle
-              className="h-4 w-4 shrink-0"
+              className="h-4 w-4 shrink-0 mt-0.5"
               style={{ color: plan.highlighted ? '#10b981' : 'var(--color-text-quaternary)' }}
             />
-            <TooltipProvider>
-              <Tooltip delayDuration={0}>
-                <TooltipTrigger asChild>
-                  <p
-                    style={{ color: 'var(--color-text-secondary)' }}
-                    className={cn(
-                      feature.tooltip && 'cursor-pointer border-b border-dashed',
-                    )}
-                  >
-                    {feature.text}
-                  </p>
-                </TooltipTrigger>
-                {feature.tooltip && (
+            {feature.tooltip ? (
+              <TooltipProvider>
+                <Tooltip delayDuration={0}>
+                  <TooltipTrigger asChild>
+                    <span
+                      style={{ color: 'var(--color-text-secondary)', lineHeight: 1.5 }}
+                      className="cursor-help border-b border-dashed"
+                    >
+                      {feature.text}
+                    </span>
+                  </TooltipTrigger>
                   <TooltipContent>
                     <p>{feature.tooltip}</p>
                   </TooltipContent>
-                )}
-              </Tooltip>
-            </TooltipProvider>
+                </Tooltip>
+              </TooltipProvider>
+            ) : (
+              <span style={{ color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+                {feature.text}
+              </span>
+            )}
           </div>
         ))}
       </div>
 
       {/* CTA */}
-      <div className="mt-auto w-full p-4" style={{ borderTop: '0.5px solid var(--glass-border)' }}>
+      <div className="mt-auto w-full p-6 pt-0">
         {plan.comingSoon ? (
-          <Button className="w-full" variant="outline" disabled>
+          <Button className="w-full" variant="outline" size="lg" disabled>
             Coming Soon
           </Button>
         ) : plan.btn.onClick ? (
           <Button
             className="w-full"
             variant={plan.highlighted ? 'default' : 'outline'}
+            size="lg"
             onClick={plan.btn.onClick}
           >
             {plan.btn.text}
@@ -214,6 +217,7 @@ export function PricingCard({
           <Button
             className="w-full"
             variant={plan.highlighted ? 'default' : 'outline'}
+            size="lg"
             asChild
           >
             <Link href={plan.btn.href}>{plan.btn.text}</Link>
