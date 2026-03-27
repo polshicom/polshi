@@ -93,7 +93,7 @@ function timeAgo(isoStr) {
 export default function WhaleTable({ isPro }) {
   const [trades, setTrades] = useState([])
   const [platform, setPlatform] = useState('all')
-  const [minSize, setMinSize] = useState('1000')
+  const [minSize, setMinSize] = useState('100')
   const [loading, setLoading] = useState(true)
   const [countdown, setCountdown] = useState(60)
 

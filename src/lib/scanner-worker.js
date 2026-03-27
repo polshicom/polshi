@@ -123,12 +123,39 @@ async function runCycle() {
     exploreMarkets.sort((a, b) => b.volume - a.volume)
     cacheSet(EXPLORE_KEY, exploreMarkets, EXPLORE_TTL)
 
-    // ── Whale trades (full list + whale of the day) ──
+    // ── Whale trades (accumulate significant trades over time) ──
     fetchAllTrades()
       .then(trades => {
-        cacheSet(WHALE_TRADES_KEY, trades, WHALE_TRADES_TTL)
-        if (trades.length > 0) {
-          const top = trades.reduce((best, t) => t.dollarValue > best.dollarValue ? t : best, trades[0])
+        // Filter to notable trades only (scored on full batch for accuracy)
+        const notable = trades.filter(t => t.whaleScore >= 30 || t.dollarValue >= 100)
+
+        // Merge with existing cached trades (rolling accumulation)
+        const existing = cacheGetWithMeta(WHALE_TRADES_KEY).value || []
+        const merged = [...notable, ...existing]
+
+        // Deduplicate by time+platform+market+dollarValue
+        const seen = new Set()
+        const deduped = []
+        for (const t of merged) {
+          const key = `${t.time}|${t.platform}|${t.market}|${t.dollarValue}`
+          if (!seen.has(key)) {
+            seen.add(key)
+            deduped.push(t)
+          }
+        }
+
+        // Sort newest first, drop trades older than 24h, cap at 500
+        const cutoff = Date.now() - 24 * 60 * 60 * 1000
+        const fresh = deduped
+          .filter(t => new Date(t.time).getTime() > cutoff)
+          .sort((a, b) => new Date(b.time) - new Date(a.time))
+          .slice(0, 500)
+
+        cacheSet(WHALE_TRADES_KEY, fresh, WHALE_TRADES_TTL)
+
+        // Whale of the Day: biggest trade from accumulated pool
+        if (fresh.length > 0) {
+          const top = fresh.reduce((best, t) => t.dollarValue > best.dollarValue ? t : best, fresh[0])
           cacheSet(WHALE_YESTERDAY_KEY, top, WHALE_YESTERDAY_TTL)
         }
       })

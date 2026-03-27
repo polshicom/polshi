@@ -21,23 +21,6 @@ function useMousePosition() {
   return mousePosition
 }
 
-function hexToRgb(hex) {
-  hex = hex.replace("#", "")
-
-  if (hex.length === 3) {
-    hex = hex
-      .split("")
-      .map((char) => char + char)
-      .join("")
-  }
-
-  const hexInt = parseInt(hex, 16)
-  const red = (hexInt >> 16) & 255
-  const green = (hexInt >> 8) & 255
-  const blue = hexInt & 255
-  return [red, green, blue]
-}
-
 const Particles = ({
   className = "",
   quantity = 100,
@@ -48,6 +31,9 @@ const Particles = ({
   color = "#ffffff",
   vx = 0,
   vy = 0,
+  logos = false,
+  blur = 0,
+  excludeSelectors = [],
 }) => {
   const canvasRef = useRef(null)
   const canvasContainerRef = useRef(null)
@@ -57,14 +43,78 @@ const Particles = ({
   const mouse = useRef({ x: 0, y: 0 })
   const canvasSize = useRef({ w: 0, h: 0 })
   const dpr = typeof window !== "undefined" ? window.devicePixelRatio : 1
-
   const animationFrameRef = useRef(null)
+  const imagesRef = useRef([])
+  const imagesLoadedRef = useRef(false)
+  const exclusionZonesRef = useRef([])
+
+  // Compute exclusion zones from DOM selectors
+  const updateExclusionZones = () => {
+    if (!canvasContainerRef.current || !logos || excludeSelectors.length === 0) {
+      exclusionZonesRef.current = []
+      return
+    }
+    const canvasRect = canvasContainerRef.current.getBoundingClientRect()
+    const padding = 20 // extra padding around text
+    const zones = []
+    for (const selector of excludeSelectors) {
+      const els = document.querySelectorAll(selector)
+      els.forEach((el) => {
+        const r = el.getBoundingClientRect()
+        zones.push({
+          x1: r.left - canvasRect.left - padding,
+          y1: r.top - canvasRect.top - padding,
+          x2: r.right - canvasRect.left + padding,
+          y2: r.bottom - canvasRect.top + padding,
+        })
+      })
+    }
+    exclusionZonesRef.current = zones
+  }
+
+  const isInExclusionZone = (x, y) => {
+    for (const z of exclusionZonesRef.current) {
+      if (x >= z.x1 && x <= z.x2 && y >= z.y1 && y <= z.y2) return true
+    }
+    return false
+  }
+
+  // Load logo images when logos mode is enabled
+  useEffect(() => {
+    if (!logos) {
+      imagesLoadedRef.current = true
+      return
+    }
+
+    const polymarketImg = new Image()
+    const kalshiImg = new Image()
+    let loaded = 0
+
+    const onLoad = () => {
+      loaded++
+      if (loaded === 2) {
+        imagesRef.current = [
+          { img: polymarketImg, aspect: polymarketImg.naturalWidth / polymarketImg.naturalHeight },
+          { img: kalshiImg, aspect: kalshiImg.naturalWidth / kalshiImg.naturalHeight },
+        ]
+        imagesLoadedRef.current = true
+        initCanvas()
+      }
+    }
+
+    polymarketImg.onload = onLoad
+    kalshiImg.onload = onLoad
+    polymarketImg.src = "/polymarket-logo.png"
+    kalshiImg.src = "/kalshi-logo.webp"
+  }, [logos])
 
   useEffect(() => {
     if (canvasRef.current) {
       context.current = canvasRef.current.getContext("2d")
     }
-    initCanvas()
+    if (!logos || imagesLoadedRef.current) {
+      initCanvas()
+    }
     const runAnimation = () => {
       clearContext()
       circles.current.forEach((circle, i) => {
@@ -79,12 +129,45 @@ const Particles = ({
           remapValue(closestEdge, 0, 20, 0, 1).toFixed(2),
         )
         if (remapClosestEdge > 1) {
-          circle.alpha += 0.02
+          circle.alpha += 0.005
           if (circle.alpha > circle.targetAlpha) {
             circle.alpha = circle.targetAlpha
           }
         } else {
           circle.alpha = circle.targetAlpha * remapClosestEdge
+        }
+        // Repel from nearby logos to prevent overlap
+        if (logos) {
+          for (let j = 0; j < circles.current.length; j++) {
+            if (i === j) continue
+            const other = circles.current[j]
+            const ddx = (circle.x + circle.translateX) - (other.x + other.translateX)
+            const ddy = (circle.y + circle.translateY) - (other.y + other.translateY)
+            const dist = Math.sqrt(ddx * ddx + ddy * ddy)
+            if (dist < MIN_SPACING && dist > 0) {
+              const force = (MIN_SPACING - dist) / MIN_SPACING * 0.15
+              circle.x += (ddx / dist) * force
+              circle.y += (ddy / dist) * force
+            }
+          }
+
+          // Push out of exclusion zones
+          const cx = circle.x + circle.translateX
+          const cy = circle.y + circle.translateY
+          for (const z of exclusionZonesRef.current) {
+            if (cx >= z.x1 && cx <= z.x2 && cy >= z.y1 && cy <= z.y2) {
+              // Find nearest edge and push toward it
+              const distLeft = cx - z.x1
+              const distRight = z.x2 - cx
+              const distTop = cy - z.y1
+              const distBottom = z.y2 - cy
+              const minDist = Math.min(distLeft, distRight, distTop, distBottom)
+              if (minDist === distLeft) circle.x -= 0.5
+              else if (minDist === distRight) circle.x += 0.5
+              else if (minDist === distTop) circle.y -= 0.5
+              else circle.y += 0.5
+            }
+          }
         }
         circle.x += circle.dx + vx
         circle.y += circle.dy + vy
@@ -111,15 +194,20 @@ const Particles = ({
       animationFrameRef.current = window.requestAnimationFrame(runAnimation)
     }
     animationFrameRef.current = window.requestAnimationFrame(runAnimation)
-    window.addEventListener("resize", initCanvas)
+    window.addEventListener("resize", handleResize)
 
     return () => {
-      window.removeEventListener("resize", initCanvas)
+      window.removeEventListener("resize", handleResize)
       if (animationFrameRef.current) {
         window.cancelAnimationFrame(animationFrameRef.current)
       }
     }
   }, [color])
+
+  const handleResize = () => {
+    updateExclusionZones()
+    initCanvas()
+  }
 
   useEffect(() => {
     onMouseMove()
@@ -131,6 +219,7 @@ const Particles = ({
 
   const initCanvas = () => {
     resizeCanvas()
+    updateExclusionZones()
     drawParticles()
   }
 
@@ -161,17 +250,45 @@ const Particles = ({
     }
   }
 
+  const MIN_SPACING = 50
+
+  const overlapsExisting = (x, y) => {
+    for (const c of circles.current) {
+      const dx = c.x - x
+      const dy = c.y - y
+      if (Math.sqrt(dx * dx + dy * dy) < MIN_SPACING) return true
+    }
+    return false
+  }
+
   const circleParams = () => {
-    const x = Math.floor(Math.random() * canvasSize.current.w)
-    const y = Math.floor(Math.random() * canvasSize.current.h)
+    let x, y
+    let attempts = 0
+    do {
+      x = Math.floor(Math.random() * canvasSize.current.w)
+      y = Math.floor(Math.random() * canvasSize.current.h)
+      attempts++
+    } while (logos && (overlapsExisting(x, y) || isInExclusionZone(x, y)) && attempts < 80)
+
     const translateX = 0
     const translateY = 0
-    const pSize = Math.floor(Math.random() * 2) + size
+    const pSize = logos
+      ? Math.floor(Math.random() * 8) + 10 // smaller: 10-18px
+      : Math.floor(Math.random() * 2) + size
     const alpha = 0
-    const targetAlpha = parseFloat((Math.random() * 0.6 + 0.1).toFixed(1))
-    const dx = (Math.random() - 0.5) * 0.1
-    const dy = (Math.random() - 0.5) * 0.1
-    const magnetism = 0.1 + Math.random() * 4
+    const targetAlpha = logos
+      ? parseFloat((Math.random() * 0.55 + 0.20).toFixed(2)) // 20-75% opacity
+      : parseFloat((Math.random() * 0.6 + 0.1).toFixed(1))
+    const dx = logos
+      ? (Math.random() - 0.5) * 0.025
+      : (Math.random() - 0.5) * 0.1
+    const dy = logos
+      ? (Math.random() - 0.5) * 0.025
+      : (Math.random() - 0.5) * 0.1
+    const magnetism = logos
+      ? 0.3 + Math.random() * 3 // stronger mouse tracking
+      : 0.1 + Math.random() * 4
+    const logoType = Math.random() < 0.5 ? 0 : 1
     return {
       x,
       y,
@@ -183,6 +300,7 @@ const Particles = ({
       dx,
       dy,
       magnetism,
+      logoType,
     }
   }
 
@@ -190,13 +308,49 @@ const Particles = ({
 
   const drawCircle = (circle, update = false) => {
     if (context.current) {
-      const { x, y, translateX, translateY, size, alpha } = circle
-      context.current.translate(translateX, translateY)
-      context.current.beginPath()
-      context.current.arc(x, y, size, 0, 2 * Math.PI)
-      context.current.fillStyle = `rgba(${rgb.join(", ")}, ${alpha})`
-      context.current.fill()
-      context.current.setTransform(dpr, 0, 0, dpr, 0, 0)
+      const { x, y, translateX, translateY, size: circleSize, alpha, logoType } = circle
+
+      if (logos && imagesLoadedRef.current && imagesRef.current.length === 2) {
+        const imgData = imagesRef.current[logoType]
+        const img = imgData.img
+        const aspect = imgData.aspect
+
+        const drawHeight = circleSize * 2
+        const drawWidth = drawHeight * aspect
+        const cornerRadius = 4
+
+        context.current.save()
+        context.current.translate(translateX, translateY)
+        context.current.globalAlpha = alpha
+
+        context.current.beginPath()
+        context.current.roundRect(
+          x - drawWidth / 2,
+          y - drawHeight / 2,
+          drawWidth,
+          drawHeight,
+          cornerRadius,
+        )
+        context.current.clip()
+
+        context.current.drawImage(
+          img,
+          x - drawWidth / 2,
+          y - drawHeight / 2,
+          drawWidth,
+          drawHeight,
+        )
+
+        context.current.restore()
+        context.current.setTransform(dpr, 0, 0, dpr, 0, 0)
+      } else {
+        context.current.translate(translateX, translateY)
+        context.current.beginPath()
+        context.current.arc(x, y, circleSize, 0, 2 * Math.PI)
+        context.current.fillStyle = `rgba(${rgb.join(", ")}, ${alpha})`
+        context.current.fill()
+        context.current.setTransform(dpr, 0, 0, dpr, 0, 0)
+      }
 
       if (!update) {
         circles.current.push(circle)
@@ -236,9 +390,30 @@ const Particles = ({
       ref={canvasContainerRef}
       aria-hidden="true"
     >
-      <canvas ref={canvasRef} className="size-full" />
+      <canvas
+        ref={canvasRef}
+        className="size-full"
+        style={blur > 0 ? { filter: `blur(${blur}px)` } : undefined}
+      />
     </div>
   )
+}
+
+function hexToRgb(hex) {
+  hex = hex.replace("#", "")
+
+  if (hex.length === 3) {
+    hex = hex
+      .split("")
+      .map((char) => char + char)
+      .join("")
+  }
+
+  const hexInt = parseInt(hex, 16)
+  const red = (hexInt >> 16) & 255
+  const green = (hexInt >> 8) & 255
+  const blue = hexInt & 255
+  return [red, green, blue]
 }
 
 export { Particles }
