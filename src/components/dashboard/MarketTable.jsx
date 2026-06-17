@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { Flame } from 'lucide-react'
 import UpgradeOverlay from './UpgradeOverlay'
 
@@ -96,6 +96,21 @@ const FAKE_PREMIUM_ROWS = [
     aiConfidence: 91, aiReason: 'Same mission milestone',
     volume: '$5.3M', endDate: '2026-04-01',
   },
+]
+
+// Group markets into tiers based on edge size and verification
+function getGroup(m) {
+  if (!m.isArbSafe) return 3
+  if ((m.edge ?? 0) >= 5) return 0
+  if ((m.edge ?? 0) >= 2) return 1
+  return 2
+}
+
+const GROUP_DEFS = [
+  { key: 0, label: 'Top Opportunities', accent: 'top' },
+  { key: 1, label: 'Confirmed Edges', accent: 'confirmed' },
+  { key: 2, label: 'Smaller Fast Edges', accent: 'small' },
+  { key: 3, label: 'Possible Mispricings', accent: 'possible' },
 ]
 
 // Skeleton row for loading state
@@ -323,6 +338,11 @@ export default function MarketTable({ initialMarkets, isPro, refreshInterval }) 
   const blurredRows = [...realBlurredRows, ...fakeRows]
   const showOverlay = !isPro && (freeEligible.length > FREE_LIMIT || fakeRows.length > 0)
 
+  const groups = GROUP_DEFS.map(g => ({
+    ...g,
+    rows: visibleRows.filter(m => getGroup(m) === g.key),
+  })).filter(g => g.rows.length > 0)
+
   return (
     <>
       <div className="filter-bar">
@@ -428,17 +448,34 @@ export default function MarketTable({ initialMarkets, isPro, refreshInterval }) 
                 <SkeletonRow />
               </>
             )}
-            {!loading && visibleRows.map((m, i) => (
-              <MarketRow
-                key={i}
-                market={m}
-                isPro={isPro}
-                stake={stake}
-                onVerifyYes={handleVerifyYes}
-                onVerifyNo={isPro ? handleVerifyNo : handleFreeVoteNo}
-                isLast={i === visibleRows.length - 1 && blurredRows.length === 0}
-              />
-            ))}
+            {!loading && groups.map(group => {
+              const maxProfit = group.rows.reduce(
+                (max, m) => m.edge > 0 && m.isArbSafe ? Math.max(max, Math.round(m.edge * 10)) : max, 0
+              )
+              const isLastGroup = group.key === groups[groups.length - 1].key
+              return (
+                <React.Fragment key={group.key}>
+                  <div className={`mt-group-header mt-group-${group.accent}`}>
+                    <span className="mt-group-title">{group.label}</span>
+                    <span className="mt-group-count">{group.rows.length}</span>
+                    {maxProfit > 0 && (
+                      <span className="mt-group-profit">up to +${maxProfit} / $1k</span>
+                    )}
+                  </div>
+                  {group.rows.map((m, i) => (
+                    <MarketRow
+                      key={i}
+                      market={m}
+                      isPro={isPro}
+                      stake={stake}
+                      onVerifyYes={handleVerifyYes}
+                      onVerifyNo={isPro ? handleVerifyNo : handleFreeVoteNo}
+                      isLast={isLastGroup && i === group.rows.length - 1 && blurredRows.length === 0}
+                    />
+                  ))}
+                </React.Fragment>
+              )
+            })}
             {!loading && blurredRows.map((m, i) => (
               <MarketRow
                 key={`blur-${i}`}
@@ -534,7 +571,12 @@ function MarketRow({ market: m, blurred, isPro, stake = 1000, onVerifyYes, onVer
         {/* Market */}
         <div className="mt-col-market">
           <div className="mt-market-info">
-            <span className="mt-question">{m.question}</span>
+            <a
+              href={`/market/${encodeURIComponent(m.question.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '-').slice(0, 100))}`}
+              className="mt-question mt-question-link"
+            >
+              {m.question}
+            </a>
             <div className="mt-badges">
               {isCommunityVerified && (
                 <span className="community-badge">Community Verified</span>

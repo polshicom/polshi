@@ -126,8 +126,13 @@ async function runCycle() {
     // ── Whale trades (accumulate significant trades over time) ──
     fetchAllTrades()
       .then(trades => {
-        // Filter to notable trades only (scored on full batch for accuracy)
-        const notable = trades.filter(t => t.whaleScore >= 30 || t.dollarValue >= 100)
+        // Add category to each trade based on market name
+        for (const t of trades) {
+          if (!t.category) t.category = categorize(t.market || '')
+        }
+
+        // Filter to significant trades only — $5K+ to keep signal high
+        const notable = trades.filter(t => t.dollarValue >= 5000)
 
         // Merge with existing cached trades (rolling accumulation)
         const existing = cacheGetWithMeta(WHALE_TRADES_KEY).value || []

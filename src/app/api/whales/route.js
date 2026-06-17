@@ -5,7 +5,8 @@ import { ensureWorkerRunning, waitForFirstCycle, WHALE_TRADES_KEY } from '../../
 export async function GET(request) {
   const { searchParams } = new URL(request.url)
   const platform = searchParams.get('platform') || 'all'
-  const minSize = parseInt(searchParams.get('minSize') || '0', 10)
+  const minSize = parseInt(searchParams.get('minSize') || '5000', 10)
+  const category = searchParams.get('category') || 'all'
 
   ensureWorkerRunning()
   await waitForFirstCycle()
@@ -22,6 +23,10 @@ export async function GET(request) {
 
     if (minSize > 0) {
       filtered = filtered.filter(t => t.dollarValue >= minSize)
+    }
+
+    if (category !== 'all') {
+      filtered = filtered.filter(t => t.category === category)
     }
 
     return NextResponse.json({

@@ -10,6 +10,18 @@ function formatVolume(vol) {
   return `$${vol.toFixed(0)}`
 }
 
+function SkeletonRow() {
+  return (
+    <div className="volume-row">
+      <div className="vol-col-rank"><div className="em-skel em-skel-xs" /></div>
+      <div className="vol-col-market"><div className="em-skel" style={{ marginBottom: 4 }} /><div className="em-skel em-skel-sm" /></div>
+      <div className="vol-col-platform"><div className="em-skel em-skel-sm" /></div>
+      <div className="vol-col-volume"><div className="em-skel em-skel-sm" /></div>
+      <div className="vol-col-prob"><div className="em-skel em-skel-xs" /></div>
+    </div>
+  )
+}
+
 export default function VolumePage() {
   const [markets, setMarkets] = useState([])
   const [loading, setLoading] = useState(true)
@@ -34,6 +46,9 @@ export default function VolumePage() {
     load()
   }, [])
 
+  const top100 = markets.slice(0, 100)
+  const maxVol = top100.length > 0 ? Math.max(...top100.map(m => m.volume || 0)) : 1
+
   return (
     <>
       <div className="dashboard-header">
@@ -48,15 +63,21 @@ export default function VolumePage() {
       {/* Metric cards */}
       <div className="volume-metrics">
         <div className="volume-metric-card">
-          <div className="volume-metric-value">{stats.total}</div>
+          <div className="volume-metric-value">
+            {loading ? <div className="em-skel em-skel-sm" style={{ margin: '0 auto', height: 32, width: 80 }} /> : stats.total}
+          </div>
           <div className="volume-metric-label">Markets Monitored</div>
         </div>
         <div className="volume-metric-card">
-          <div className="volume-metric-value">{formatVolume(stats.totalVolume)}</div>
+          <div className="volume-metric-value vol-metric-green">
+            {loading ? <div className="em-skel em-skel-sm" style={{ margin: '0 auto', height: 32, width: 80 }} /> : formatVolume(stats.totalVolume)}
+          </div>
           <div className="volume-metric-label">Total Volume</div>
         </div>
         <div className="volume-metric-card">
-          <div className="volume-metric-value">{formatVolume(stats.avgVolume)}</div>
+          <div className="volume-metric-value">
+            {loading ? <div className="em-skel em-skel-sm" style={{ margin: '0 auto', height: 32, width: 80 }} /> : formatVolume(stats.avgVolume)}
+          </div>
           <div className="volume-metric-label">Avg Market Volume</div>
         </div>
       </div>
@@ -71,30 +92,34 @@ export default function VolumePage() {
           <div className="vol-col-prob">Probability</div>
         </div>
 
-        {loading ? (
-          <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-text-quaternary)' }}>
-            Loading volume data...
-          </div>
-        ) : (
-          markets.slice(0, 100).map((m, i) => (
-            <div key={i} className="volume-row">
-              <div className="vol-col-rank">{i + 1}</div>
-              <div className="vol-col-market">
-                <div className="vol-market-name">{m.question}</div>
-                {m.category && <span className="vol-market-cat">{m.category}</span>}
-              </div>
-              <div className="vol-col-platform">
-                <span className={m.platform === 'polymarket' ? 'badge-polymarket' : 'badge-kalshi'}>
-                  {m.platform === 'polymarket' ? 'Polymarket' : 'Kalshi'}
-                </span>
-              </div>
-              <div className="vol-col-volume">{formatVolume(m.volume)}</div>
-              <div className="vol-col-prob">
-                {m.probability != null ? `${Math.round(m.probability * 100)}%` : '—'}
-              </div>
-            </div>
-          ))
-        )}
+        {loading
+          ? Array.from({ length: 10 }).map((_, i) => <SkeletonRow key={i} />)
+          : top100.map((m, i) => {
+              const barPct = maxVol > 0 ? Math.round((m.volume || 0) / maxVol * 100) : 0
+              const prob = m.prob != null ? `${Math.round(m.prob * 100)}%` : '—'
+              return (
+                <div key={i} className="volume-row">
+                  <div className="vol-col-rank">{i + 1}</div>
+                  <div className="vol-col-market">
+                    <div className="vol-market-name">{m.question}</div>
+                    {m.category && <span className="vol-market-cat">{m.category}</span>}
+                  </div>
+                  <div className="vol-col-platform">
+                    <span className={m.platform === 'polymarket' ? 'badge-polymarket' : 'badge-kalshi'}>
+                      {m.platform === 'polymarket' ? 'Poly' : 'Kalshi'}
+                    </span>
+                  </div>
+                  <div className="vol-col-volume">
+                    <span className="vol-amount">{formatVolume(m.volume)}</span>
+                    <div className="vol-bar-wrap">
+                      <div className="vol-bar" style={{ width: `${barPct}%` }} />
+                    </div>
+                  </div>
+                  <div className="vol-col-prob">{prob}</div>
+                </div>
+              )
+            })
+        }
       </div>
     </>
   )

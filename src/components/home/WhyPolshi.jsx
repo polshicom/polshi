@@ -1,38 +1,50 @@
+const CARDS = [
+  {
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M7 16V4m0 0L3 8m4-4 4 4" />
+        <path d="M17 8v12m0 0 4-4m-4 4-4-4" />
+      </svg>
+    ),
+    accentCls: 'hp-why-icon--indigo',
+    title: 'Find price gaps',
+    desc: 'See where Polymarket and Kalshi disagree. Take the better price.',
+  },
+  {
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      </svg>
+    ),
+    accentCls: 'hp-why-icon--green',
+    title: "See who's buying big",
+    desc: 'Track the largest trades happening right now. Follow the money.',
+  },
+  {
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <rect x="2" y="3" width="9" height="18" rx="2" />
+        <rect x="13" y="3" width="9" height="18" rx="2" />
+      </svg>
+    ),
+    accentCls: 'hp-why-icon--blue',
+    title: 'Compare any market',
+    desc: 'Same event, two platforms, side by side. Spot the difference fast.',
+  },
+]
+
 export default function WhyPolshi() {
   return (
-    <section className="why-section">
-      <div className="why-grid">
-        <div className="why-card">
-          <div className="why-card-icon arb">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
-              <polyline points="16 7 22 7 22 13" />
-            </svg>
-          </div>
-          <div className="why-card-title">Track Arbitrage</div>
-          <div className="why-card-desc">Find pricing gaps between Polymarket and Kalshi in real time.</div>
-        </div>
-        <div className="why-card">
-          <div className="why-card-icon whale">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 6v6l4 2" />
-            </svg>
-          </div>
-          <div className="why-card-title">Follow Whale Trades</div>
-          <div className="why-card-desc">See what big money is doing across prediction markets.</div>
-        </div>
-        <div className="why-card">
-          <div className="why-card-icon compare">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="7" height="7" />
-              <rect x="14" y="3" width="7" height="7" />
-              <rect x="3" y="14" width="7" height="7" />
-              <rect x="14" y="14" width="7" height="7" />
-            </svg>
-          </div>
-          <div className="why-card-title">Compare Markets</div>
-          <div className="why-card-desc">Unified view of every event across both platforms.</div>
+    <section className="hp-why-section">
+      <div className="hp-section-wrap">
+        <div className="hp-why-grid">
+          {CARDS.map(card => (
+            <div key={card.title} className="hp-why-card">
+              <div className={`hp-why-icon ${card.accentCls}`}>{card.icon}</div>
+              <h3 className="hp-why-title">{card.title}</h3>
+              <p className="hp-why-desc">{card.desc}</p>
+            </div>
+          ))}
         </div>
       </div>
     </section>

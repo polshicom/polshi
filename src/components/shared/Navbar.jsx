@@ -1,5 +1,6 @@
 'use client'
 
+import { usePathname } from 'next/navigation'
 import { PolshiLogo } from '../icons/PolshiLogo'
 import ThemeToggle from '../landing/ThemeToggle'
 
@@ -58,7 +59,22 @@ function GlassFilter() {
   )
 }
 
+const NAV_LINKS = [
+  { href: '/explore',   label: 'Markets' },
+  { href: '/whales',    label: 'Insiders' },
+  { href: '/arbitrage', label: 'Scanner' },
+  { href: '/pricing',   label: 'Pricing' },
+  { href: '/hub',       label: 'Hub' },
+]
+
 export default function Navbar({ user }) {
+  const pathname = usePathname()
+
+  function isActive(href) {
+    if (href === '/') return pathname === '/'
+    return pathname.startsWith(href)
+  }
+
   return (
     <>
       <GlassFilter />
@@ -76,11 +92,15 @@ export default function Navbar({ user }) {
           </a>
 
           <nav className="navbar-nav glass-nav-pills">
-            <a href="/explore" className="glass-pill">Markets</a>
-            <a href="/whales" className="glass-pill">Whales</a>
-            <a href="/arbitrage" className="glass-pill">Scanner</a>
-            <a href="/pricing" className="glass-pill">Pricing</a>
-            <a href="/hub" className="glass-pill">Hub</a>
+            {NAV_LINKS.map(link => (
+              <a
+                key={link.href}
+                href={link.href}
+                className={`glass-pill${isActive(link.href) ? ' glass-pill-active' : ''}`}
+              >
+                {link.label}
+              </a>
+            ))}
           </nav>
 
           <div className="navbar-actions">
