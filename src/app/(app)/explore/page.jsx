@@ -13,9 +13,9 @@ export default async function ExplorePage() {
     <>
       <div className="dashboard-header">
         <div>
-          <h1 className="dashboard-title">Markets</h1>
+          <h1 className="dashboard-title">All Markets</h1>
           <p className="dashboard-subtitle">
-            High-volume events across Polymarket and Kalshi, sorted by activity. Filter by category to find what you follow.
+            Every event on Kalshi and Polymarket, unified. Filter by category, sort by volume, and compare prices.
           </p>
         </div>
       </div>

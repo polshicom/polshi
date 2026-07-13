@@ -12,12 +12,6 @@ function formatTimeAgo(isoStr) {
   return `${Math.floor(minutes / 60)}h ago`
 }
 
-function getConfidence(aiConfidence) {
-  if (aiConfidence >= 90) return { label: 'HIGH', cls: 'hp-badge-high' }
-  if (aiConfidence >= 70) return { label: 'MED', cls: 'hp-badge-med' }
-  return { label: 'LOW', cls: 'hp-badge-low' }
-}
-
 export default function TopArbYesterday() {
   const [best, setBest] = useState(null)
   const [lastUpdated, setLastUpdated] = useState(null)
@@ -42,63 +36,85 @@ export default function TopArbYesterday() {
     return () => clearInterval(tick)
   }, [lastUpdated])
 
-  if (!loaded) return <div className="hp-toparb-skeleton" />
-  if (!best) return null
+  if (!loaded) {
+    return (
+      <section className="best-opp-section">
+        <div className="best-opp best-opp-skeleton">
+          <div className="best-opp-label">
+            <span className="best-opp-dot" />
+            Yesterday's Top Arb
+          </div>
+          <div className="best-opp-skeleton-line best-opp-skeleton-wide" />
+          <div className="best-opp-skeleton-prices">
+            <div className="best-opp-skeleton-line best-opp-skeleton-med" />
+            <div className="best-opp-skeleton-line best-opp-skeleton-med" />
+          </div>
+          <div className="best-opp-skeleton-line best-opp-skeleton-narrow" />
+        </div>
+      </section>
+    )
+  }
+
+  if (!best) {
+    return (
+      <section className="best-opp-section">
+        <div className="best-opp best-opp-empty">
+          <div className="best-opp-label">
+            <span className="best-opp-dot" />
+            Yesterday's Top Arb
+          </div>
+          <p className="best-opp-fallback">No high-confidence arb right now</p>
+          {timeAgo && <span className="best-opp-updated">Updated {timeAgo}</span>}
+        </div>
+      </section>
+    )
+  }
 
   const profitPer1K = Math.round(best.edge * 10)
-  const conf = best.aiConfidence != null ? getConfidence(best.aiConfidence) : null
-  const showDirection = best.buyPlatform && best.aiConfidence >= 90
-  const dirLabel = best.buyPlatform === 'polymarket' ? 'Better price on Polymarket' : 'Better price on Kalshi'
 
   return (
-    <section className="hp-toparb-section">
-      <div className="hp-section-wrap">
-        <div className="hp-section-label">
-          <span className="hp-section-dot" />
-          Best trade yesterday
+    <section className="best-opp-section">
+      <a href="/arbitrage" className="best-opp">
+        <div className="best-opp-label">
+          <span className="best-opp-dot" />
+          Yesterday's Top Arb
         </div>
-        <a href="/arbitrage" className="hp-toparb-card">
-          <div className="hp-toparb-left">
-            <h3 className="hp-toparb-question">
-              {best.question.length > 100 ? best.question.slice(0, 100) + '…' : best.question}
-            </h3>
-            <div className="hp-toparb-meta">
-              {best.category && (
-                <span className="hp-tag hp-tag-category">{best.category.toUpperCase()}</span>
-              )}
-              <span className="hp-tag hp-tag-poly">Polymarket</span>
-              <span className="hp-tag hp-tag-kalshi">Kalshi</span>
-            </div>
-            <p className="hp-toparb-desc">Two platforms, different prices on the same event.</p>
+
+        <h3 className="best-opp-question">{best.question}</h3>
+
+        <div className="best-opp-prices">
+          <div className="best-opp-platform">
+            <span className="best-opp-platform-name">Polymarket</span>
+            <span className="best-opp-price">{best.polymarket}¢</span>
           </div>
-
-          <div className="hp-toparb-right">
-            <div className="hp-toparb-prices">
-              <div className="hp-toparb-price-row">
-                <span className="hp-toparb-price-label">Polymarket</span>
-                <span className="hp-toparb-price-val">{best.polymarket}¢</span>
-              </div>
-              <div className="hp-toparb-price-row">
-                <span className="hp-toparb-price-label">Kalshi</span>
-                <span className="hp-toparb-price-val">{best.kalshi}¢</span>
-              </div>
-            </div>
-
-            <div className="hp-toparb-divider" />
-
-            <div className="hp-toparb-profit-block">
-              <span className="hp-toparb-profit-label">Profit per $1,000</span>
-              <span className="hp-toparb-profit-val">+${profitPer1K}</span>
-            </div>
-
-            <div className="hp-toparb-footer">
-              {conf && <span className={`hp-badge ${conf.cls}`}>{conf.label}</span>}
-              {showDirection && <span className="hp-toparb-direction">{dirLabel}</span>}
-              {timeAgo && <span className="hp-muted-time">{timeAgo}</span>}
-            </div>
+          <div className="best-opp-vs">vs</div>
+          <div className="best-opp-platform">
+            <span className="best-opp-platform-name">Kalshi</span>
+            <span className="best-opp-price">{best.kalshi}¢</span>
           </div>
-        </a>
-      </div>
+        </div>
+
+        <div className="best-opp-metrics">
+          <div className="best-opp-metric">
+            <span className="best-opp-metric-label">Edge</span>
+            <span className="best-opp-edge">{best.edge}¢</span>
+          </div>
+          <div className="best-opp-metric">
+            <span className="best-opp-metric-label">Profit per $1,000</span>
+            <span className="best-opp-profit">${profitPer1K}</span>
+          </div>
+        </div>
+
+        <div className="best-opp-footer">
+          <span className="best-opp-cta">
+            View in Scanner
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m9 18 6-6-6-6" />
+            </svg>
+          </span>
+          {timeAgo && <span className="best-opp-updated">Updated {timeAgo}</span>}
+        </div>
+      </a>
     </section>
   )
 }

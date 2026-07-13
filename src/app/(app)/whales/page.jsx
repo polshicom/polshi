@@ -2,7 +2,7 @@ import { auth } from '../../../lib/auth'
 import WhaleTable from '../../../components/dashboard/WhaleTable'
 
 export const metadata = {
-  title: 'Insider Tracker – Polshi',
+  title: 'Whale Tracking – Polshi',
 }
 
 export default async function WhalesPage() {
@@ -18,9 +18,9 @@ export default async function WhalesPage() {
               <span className="live-dot" />
               Live
             </span>
-            <h1 className="dashboard-title">Insider Tracker</h1>
+            <h1 className="dashboard-title">Whale Trade Feed</h1>
             <p className="dashboard-subtitle">
-              Large trades ($5K+) across Polymarket and Kalshi — politics, economics, crypto, and more. Follow where informed money is moving.
+              Large-size trades as they happen. See what high-conviction bettors are buying across both platforms.
             </p>
           </div>
         </div>

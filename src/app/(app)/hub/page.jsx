@@ -2,70 +2,49 @@
 
 import { useState, useEffect } from 'react'
 
-function timeAgo(isoStr) {
+function formatTimeAgo(isoStr) {
   if (!isoStr) return ''
-  const s = Math.round((Date.now() - new Date(isoStr).getTime()) / 1000)
-  if (s < 5) return 'just now'
-  if (s < 60) return `${s}s ago`
-  const m = Math.floor(s / 60)
-  if (m < 60) return `${m}m ago`
-  return `${Math.floor(m / 60)}h ago`
+  const seconds = Math.round((Date.now() - new Date(isoStr).getTime()) / 1000)
+  if (seconds < 5) return 'just now'
+  if (seconds < 60) return `${seconds}s ago`
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m ago`
+  return `${Math.floor(minutes / 60)}h ago`
 }
 
 const TOOLS = [
   {
     title: 'Arbitrage Scanner',
+    description: 'Scans both platforms for pricing mismatches in real time. Shows net profit after fees, ROI, and which side to buy.',
     href: '/arbitrage',
-    badge: 'Live',
-    badgeType: 'live',
-    desc: 'Price gaps between Polymarket and Kalshi, sorted by profit. Fees calculated.',
-    iconBg: 'rgba(94,106,210,0.12)',
-    iconColor: '#5e6ad2',
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M7 16l-4-4 4-4" /><path d="M17 8l4 4-4 4" /><line x1="3" y1="12" x2="21" y2="12" />
-      </svg>
-    ),
+    badge: 'Live Scanner',
+    tags: ['Dual-Platform', 'Fee Breakdown', 'Live Data'],
+    large: true,
   },
   {
-    title: 'Whale Tracker',
+    title: 'Volume Dashboard',
+    description: 'Ranked by 24h volume',
+    href: '/volume',
+    icon: '📈',
+  },
+  {
+    title: 'Whale Tracking',
+    description: 'Big-money trade feed',
     href: '/whales',
-    badge: 'Pro',
-    badgeType: 'pro',
-    desc: 'Large trades across both platforms in real time. See what big money is doing.',
-    iconBg: 'rgba(16,185,129,0.12)',
-    iconColor: '#10b981',
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-        <line x1="12" x2="12" y1="2" y2="22" />
-        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-      </svg>
-    ),
-  },
-  {
-    title: 'Explore Markets',
-    href: '/explore',
-    badge: null,
-    desc: 'Browse all matched markets across both platforms. Sort by edge, confidence, volume.',
-    iconBg: 'rgba(59,130,246,0.12)',
-    iconColor: '#3b82f6',
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
-      </svg>
-    ),
+    icon: '🐋',
   },
 ]
 
 const DASHBOARDS = [
-  { title: 'Fed Watch', desc: 'Fed rate bets and Fed Chair nomination odds across both platforms', category: 'FINANCE', query: 'fed' },
-  { title: 'Bitcoin Price Targets', desc: 'BTC price predictions — where odds diverge across platforms', category: 'FINANCE', query: 'bitcoin' },
-  { title: 'Ethereum Price Targets', desc: 'ETH outlook compared across Kalshi and Polymarket', category: 'FINANCE', query: 'ethereum' },
-  { title: 'NBA Finals', desc: 'Title odds compared — spot pricing gaps between platforms', category: 'SPORTS', query: 'nba' },
-  { title: 'FIFA World Cup', desc: 'World Cup winner odds across Kalshi and Polymarket', category: 'SPORTS', query: 'world cup' },
-  { title: 'NHL Stanley Cup', desc: 'Stanley Cup odds compared between prediction markets', category: 'SPORTS', query: 'stanley cup' },
-  { title: '2028 Presidential Race', desc: 'Nomination and election odds — where the money is going', category: 'POLITICS', query: 'presidential' },
-  { title: 'Trump Markets', desc: 'Every prediction market involving Trump across both platforms', category: 'POLITICS', query: 'trump' },
+  { title: 'Market Dominance', description: 'Which platform is capturing more volume and liquidity right now', category: 'FINANCE', type: 'dominance' },
+  { title: 'Fed Watch', description: 'Fed rate bets and Fed Chair nomination odds across both platforms', category: 'FINANCE', query: 'fed' },
+  { title: 'Bitcoin Price Targets', description: 'Compare BTC price predictions and see where odds diverge', category: 'FINANCE', query: 'bitcoin' },
+  { title: 'Ethereum Price Targets', description: 'ETH price outlook compared across both platforms', category: 'FINANCE', query: 'ethereum' },
+  { title: 'NBA Finals', description: 'NBA title odds compared — spot pricing gaps between platforms', category: 'SPORTS', query: 'nba' },
+  { title: 'FIFA World Cup', description: 'World Cup winner odds across Kalshi and Polymarket', category: 'SPORTS', query: 'world cup' },
+  { title: 'NHL Stanley Cup', description: 'Stanley Cup odds compared between prediction markets', category: 'SPORTS', query: 'stanley cup' },
+  { title: '2028 Presidential Race', description: 'Presidential nomination and election odds — where the money is going', category: 'POLITICS', query: 'presidential' },
+  { title: 'Trump Markets', description: 'Every prediction market involving Trump across both platforms', category: 'POLITICS', query: 'trump' },
 ]
 
 const CATEGORIES = ['All', 'Sports', 'Finance', 'Politics']
@@ -79,19 +58,12 @@ function formatVol(vol) {
 
 export default function HubPage() {
   const [activeCategory, setActiveCategory] = useState('All')
-  const [stats, setStats] = useState(null)
   const [previews, setPreviews] = useState({})
   const [whales, setWhales] = useState([])
 
+  // Fetch whale trades for Whales of the Day
   useEffect(() => {
-    fetch('/api/scanner-stats')
-      .then(r => r.json())
-      .then(d => setStats(d))
-      .catch(() => {})
-  }, [])
-
-  useEffect(() => {
-    fetch('/api/whales?minSize=1000')
+    fetch('/api/whales?minSize=100')
       .then(r => r.json())
       .then(data => {
         const trades = data.trades || []
@@ -101,28 +73,43 @@ export default function HubPage() {
       .catch(() => {})
   }, [])
 
+  // Fetch preview data for dashboard cards
   useEffect(() => {
-    fetch('/api/explore-matched?limit=500')
+    fetch('/api/explore?limit=500')
       .then(r => r.json())
       .then(data => {
         const markets = data.markets || []
-        const map = {}
+        const previewMap = {}
+
         for (const d of DASHBOARDS) {
-          const words = d.query.toLowerCase().split(/\s+/).filter(w => w.length >= 2)
+          if (d.type) continue // skip dominance
+          const q = d.query.toLowerCase()
+          const words = q.split(/\s+/).filter(w => w.length >= 2)
           const matched = markets.filter(m => {
-            const q = m.question.toLowerCase()
-            return words.every(w => q.includes(w))
+            const question = m.question.toLowerCase()
+            return words.every(w => question.includes(w))
           })
           const sorted = matched.sort((a, b) => (b.volume || 0) - (a.volume || 0))
-          map[d.query] = {
+          previewMap[d.query] = {
             count: matched.length,
             top: sorted.slice(0, 2).map(m => ({
-              question: m.question.length > 45 ? m.question.slice(0, 45) + '…' : m.question,
+              question: m.question.length > 45 ? m.question.slice(0, 45) + '...' : m.question,
               vol: formatVol(m.volume || 0),
+              prob: m.prob,
             })),
           }
         }
-        setPreviews(map)
+
+        // Dominance preview: total volume
+        const polyVol = markets.filter(m => m.platform === 'polymarket').reduce((s, m) => s + (m.volume || 0), 0)
+        const kalshiVol = markets.filter(m => m.platform === 'kalshi').reduce((s, m) => s + (m.volume || 0), 0)
+        previewMap['_dominance'] = {
+          polyVol: formatVol(polyVol),
+          kalshiVol: formatVol(kalshiVol),
+          totalMarkets: markets.length,
+        }
+
+        setPreviews(previewMap)
       })
       .catch(() => {})
   }, [])
@@ -133,110 +120,100 @@ export default function HubPage() {
 
   return (
     <>
-      {/* Header */}
-      <div className="dashboard-header">
-        <div>
-          <h1 className="dashboard-title">Command Center</h1>
-          <p className="dashboard-subtitle">Your arb tools, market dashboards, and whale feeds.</p>
-        </div>
+      {/* Dark hero section */}
+      <div className="hub-hero">
+        <span className="hub-hero-badge">
+          <span className="live-dot" />
+          {DASHBOARDS.length}+ Live Dashboards
+        </span>
+        <h1 className="hub-hero-title">Command Center</h1>
+        <p className="hub-hero-subtitle">Your arb tools, market dashboards, and whale feeds — all in one place.</p>
       </div>
 
-      {/* Live stats strip */}
-      {stats && (
-        <div className="hub-stats-strip">
-          <div className="hub-stat">
-            <span className="hub-stat-val">{stats.scanned?.toLocaleString() ?? '—'}</span>
-            <span className="hub-stat-label">markets scanned</span>
-          </div>
-          <div className="hub-stat-divider" />
-          <div className="hub-stat">
-            <span className="hub-stat-val hub-stat-green">{stats.arbCount ?? '—'}</span>
-            <span className="hub-stat-label">price gaps found</span>
-          </div>
-          <div className="hub-stat-divider" />
-          <div className="hub-stat">
-            <span className="hub-stat-val hub-stat-green">
-              {stats.totalEdge > 0
-                ? stats.totalEdge >= 1000
-                  ? `$${(stats.totalEdge / 1000).toFixed(0)}K`
-                  : `$${Math.round(stats.totalEdge)}`
-                : '—'}
-            </span>
-            <span className="hub-stat-label">total edge available</span>
-          </div>
-          <div className="hub-stat-divider" />
-          <div className="hub-stat">
-            <span className="hub-stat-pulse" />
-            <span className="hub-stat-label">{stats.lastUpdated ? `updated ${timeAgo(stats.lastUpdated)}` : 'live'}</span>
-          </div>
-        </div>
-      )}
-
-      {/* Tool cards */}
+      {/* Tools grid */}
       <div className="hub-tools">
         <div className="hub-tools-grid">
-          {TOOLS.map(tool => (
-            <a key={tool.title} href={tool.href} className="hub-tool-card">
-              <div className="hub-tool-top">
-                <div className="hub-tool-icon" style={{ background: tool.iconBg, color: tool.iconColor }}>
-                  {tool.icon}
-                </div>
-                {tool.badge && (
-                  <span className={`hub-tool-badge hub-tool-badge-${tool.badgeType}`}>
-                    {tool.badgeType === 'live' && <span className="hub-tool-live-dot" />}
-                    {tool.badge}
-                  </span>
-                )}
-              </div>
-              <h3 className="hub-tool-title">{tool.title}</h3>
-              <p className="hub-tool-desc">{tool.desc}</p>
-              <span className="hub-tool-cta">Open →</span>
+          {TOOLS.map((tool) => (
+            <a
+              key={tool.title}
+              href={tool.href}
+              className={`hub-tool-card ${tool.large ? 'hub-tool-large' : ''}`}
+            >
+              {tool.large ? (
+                <>
+                  <div className="hub-tool-header">
+                    <div className="hub-tool-icon">📈</div>
+                    {tool.badge && (
+                      <span className="live-badge">
+                        <span className="live-dot" />
+                        {tool.badge}
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="hub-tool-title">{tool.title}</h3>
+                  <p className="hub-tool-desc">{tool.description}</p>
+                  {tool.tags && (
+                    <div className="hub-tool-tags">
+                      {tool.tags.map(t => <span key={t} className="hub-tool-tag">{t}</span>)}
+                    </div>
+                  )}
+                  <span className="hub-tool-link">Launch Scanner →</span>
+                </>
+              ) : (
+                <>
+                  <div className="hub-tool-icon-sm">{tool.icon}</div>
+                  <div>
+                    <h3 className="hub-tool-title-sm">{tool.title}</h3>
+                    <p className="hub-tool-desc-sm">{tool.description}</p>
+                  </div>
+                  <svg className="hub-tool-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="m9 18 6-6-6-6" />
+                  </svg>
+                </>
+              )}
             </a>
           ))}
         </div>
       </div>
 
-      {/* Whale feed */}
+      {/* Whales of the Day */}
       {whales.length > 0 && (
         <div className="hub-whales">
-          <div className="hub-section-header">
-            <h2 className="hub-section-title">Largest Trades Today</h2>
-            <a href="/whales" className="hub-section-link">View all →</a>
-          </div>
-          <div className="hub-whale-table">
-            {whales.map((w, i) => {
-              const sideYes = w.side?.toUpperCase() === 'YES'
-              return (
-                <a key={i} href="/whales" className="hub-whale-row">
-                  <span className="hub-whale-market">
-                    {w.market?.length > 55 ? w.market.slice(0, 55) + '…' : w.market}
-                  </span>
-                  <span className={`hub-whale-side ${sideYes ? 'side-yes' : 'side-no'}`}>
-                    {w.side?.toUpperCase() || '?'}
-                  </span>
-                  <span className={`em-tag ${w.platform === 'polymarket' ? 'em-tag-poly' : 'em-tag-kalshi'}`}>
-                    {w.platform === 'polymarket' ? 'Poly' : 'Kalshi'}
-                  </span>
-                  <span className="hub-whale-value">{w.dollarFormatted}</span>
-                  <span className="hub-whale-time">{timeAgo(w.time)}</span>
-                </a>
-              )
-            })}
+          <h2 className="hub-dashboards-heading">Whales of the Day</h2>
+          <div className="hub-whales-table">
+            <div className="hub-whales-header-row">
+              <span>Market</span>
+              <span>Platform</span>
+              <span>Value</span>
+              <span>Type</span>
+              <span>Time</span>
+            </div>
+            {whales.map((w, i) => (
+              <a key={i} href="/whales" className="hub-whales-row">
+                <span className="hub-whales-market">
+                  {w.market.length > 40 ? w.market.slice(0, 40) + '...' : w.market}
+                </span>
+                <span className={`badge-${w.platform}`}>
+                  {w.platform === 'polymarket' ? 'Poly' : 'Kalshi'}
+                </span>
+                <span className="hub-whales-value">{w.dollarFormatted}</span>
+                <span className="hub-whales-label">{w.whaleLabel || 'Trade'}</span>
+                <span className="hub-whales-time">{formatTimeAgo(w.time)}</span>
+              </a>
+            ))}
           </div>
         </div>
       )}
 
-      {/* Market dashboards */}
+      {/* Featured dashboards */}
       <div className="hub-dashboards">
-        <div className="hub-section-header">
-          <h2 className="hub-section-title">Market Dashboards</h2>
-        </div>
+        <h2 className="hub-dashboards-heading">Market Dashboards</h2>
         <p className="hub-dashboards-subtitle">
-          Compare odds by category. Live data from both platforms.
+          Compare odds across platforms by category. Every dashboard pulls live data from both Kalshi and Polymarket.
         </p>
 
         <div className="hub-category-tabs">
-          {CATEGORIES.map(cat => (
+          {CATEGORIES.map((cat) => (
             <button
               key={cat}
               className={`hub-category-tab ${activeCategory === cat ? 'active' : ''}`}
@@ -248,23 +225,42 @@ export default function HubPage() {
         </div>
 
         <div className="hub-dashboards-grid">
-          {filtered.map(d => {
-            const preview = previews[d.query]
+          {filtered.map((d) => {
+            const preview = d.type === 'dominance' ? previews['_dominance'] : previews[d.query]
             return (
               <a
                 key={d.title}
-                href={`/compare?q=${encodeURIComponent(d.query)}`}
+                href={d.type ? `/compare?type=${d.type}` : `/compare?q=${encodeURIComponent(d.query)}`}
                 className="hub-dashboard-card"
               >
                 <div className="hub-dashboard-header">
                   <span className="hub-dashboard-category">{d.category}</span>
-                  {preview?.count > 0 && (
+                  {preview && !d.type && preview.count > 0 && (
                     <span className="hub-dashboard-count">{preview.count} markets</span>
+                  )}
+                  {!preview && (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M7 17l9.2-9.2M17 17V7H7" />
+                    </svg>
                   )}
                 </div>
                 <h3 className="hub-dashboard-title">{d.title}</h3>
-                <p className="hub-dashboard-desc">{d.desc}</p>
-                {preview?.top?.length > 0 && (
+                <p className="hub-dashboard-desc">{d.description}</p>
+
+                {/* Preview data */}
+                {d.type === 'dominance' && preview && (
+                  <div className="hub-card-preview">
+                    <div className="hub-card-preview-row">
+                      <span className="badge-polymarket" style={{ fontSize: 10 }}>Poly</span>
+                      <span className="hub-card-preview-val">{preview.polyVol}</span>
+                    </div>
+                    <div className="hub-card-preview-row">
+                      <span className="badge-kalshi" style={{ fontSize: 10 }}>Kalshi</span>
+                      <span className="hub-card-preview-val">{preview.kalshiVol}</span>
+                    </div>
+                  </div>
+                )}
+                {!d.type && preview && preview.top.length > 0 && (
                   <div className="hub-card-preview">
                     {preview.top.map((m, i) => (
                       <div key={i} className="hub-card-preview-row">

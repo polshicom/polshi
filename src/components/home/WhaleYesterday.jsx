@@ -9,9 +9,7 @@ function formatTimeAgo(isoStr) {
   if (seconds < 60) return `${seconds}s ago`
   const minutes = Math.floor(seconds / 60)
   if (minutes < 60) return `${minutes}m ago`
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours}h ago`
-  return `${Math.floor(hours / 24)}d ago`
+  return `${Math.floor(minutes / 60)}h ago`
 }
 
 export default function WhaleYesterday() {
@@ -28,45 +26,46 @@ export default function WhaleYesterday() {
       .catch(() => setLoaded(true))
   }, [])
 
-  if (!loaded) return <div className="hp-whale-skeleton" />
+  if (!loaded) {
+    return (
+      <section className="whale-yesterday-section">
+        <div className="whale-yesterday-card whale-yesterday-skeleton">
+          <div className="best-opp-skeleton-line best-opp-skeleton-wide" />
+          <div className="best-opp-skeleton-line best-opp-skeleton-narrow" />
+        </div>
+      </section>
+    )
+  }
+
   if (!whale) return null
 
-  const isWhale = whale.dollarValue >= 50000
-  const title = isWhale ? 'Whale of the Day' : 'Largest Trade Today'
-  const sideIsYes = whale.side?.toUpperCase() === 'YES'
-  const sizeLabel = whale.dollarValue >= 10000 ? 'Large' : 'Big'
-  const contextLine = `${sizeLabel} ${whale.side?.toUpperCase() || '?'} position on ${whale.market?.length > 60 ? whale.market.slice(0, 60) + '…' : whale.market}`
-
   return (
-    <section className="hp-whale-section">
-      <div className="hp-section-wrap">
-        <div className="hp-section-label">
-          <span className="hp-section-dot" />
-          {title}
+    <section className="whale-yesterday-section">
+      <div className="whale-yesterday-card">
+        <div className="whale-yesterday-label">
+          <span className="whale-yesterday-icon">&#x1F40B;</span>
+          {whale.dollarValue >= 5000 ? 'Whale of the Day' : 'Largest Trade Today'}
         </div>
-        <a href="/whales" className="hp-whale-card">
-          <div className="hp-whale-left">
-            <div className="hp-whale-icon" aria-hidden="true">🐋</div>
-            <div className={`hp-whale-side ${sideIsYes ? 'hp-whale-side-yes' : 'hp-whale-side-no'}`}>
-              {whale.side?.toUpperCase() || '?'}
-            </div>
-          </div>
-          <div className="hp-whale-body">
-            <p className="hp-whale-market">
-              {whale.market?.length > 80 ? whale.market.slice(0, 80) + '…' : whale.market}
-            </p>
-            <p className="hp-whale-context">{contextLine}</p>
-          </div>
-          <div className="hp-whale-right">
-            <span className="hp-whale-value">{whale.dollarFormatted}</span>
-            <div className="hp-whale-meta">
-              <span className={`hp-tag ${whale.platform === 'polymarket' ? 'hp-tag-poly' : 'hp-tag-kalshi'}`}>
-                {whale.platform === 'polymarket' ? 'Polymarket' : 'Kalshi'}
-              </span>
-              {whale.time && <span className="hp-muted-time">{formatTimeAgo(whale.time)}</span>}
-            </div>
-          </div>
-        </a>
+        <h3 className="whale-yesterday-market">{whale.market}</h3>
+        <div className="whale-yesterday-details">
+          <span className={`badge-${whale.platform}`}>
+            {whale.platform === 'polymarket' ? 'Polymarket' : 'Kalshi'}
+          </span>
+          <span className="whale-yesterday-value">{whale.dollarFormatted}</span>
+          <span className="whale-yesterday-side">{whale.side}</span>
+          {whale.whaleLabel && (
+            <span className="whale-yesterday-tag">{whale.whaleLabel}</span>
+          )}
+        </div>
+        <div className="whale-yesterday-footer">
+          <a href="/whales" className="whale-yesterday-cta">
+            View all whale trades
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m9 18 6-6-6-6" />
+            </svg>
+          </a>
+          <span className="whale-yesterday-time">{formatTimeAgo(whale.time)}</span>
+        </div>
       </div>
     </section>
   )
