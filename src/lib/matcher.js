@@ -53,7 +53,8 @@ const DATE_WINDOWS = {
   space:               31,
   tech:                31,
   climate:             31,
-  generic_unknown:     7,
+  entertainment:       31,
+  generic_unknown:     14,
 }
 
 function datesCompatible(fpA, fpB) {
@@ -80,12 +81,8 @@ function datesCompatible(fpA, fpB) {
       }
       return { compatible: false, reason: `Different years (${fpA.yearInText} vs ${fpB.yearInText})` }
     }
-    // No date info at all — allow only for macro topics
-    const macroTopics = new Set(['fed_rates', 'inflation', 'macro', 'geopolitical'])
-    if (macroTopics.has(fpA.topic) || macroTopics.has(fpB.topic)) {
-      return { compatible: true, reason: 'No dates but macro topic' }
-    }
-    return { compatible: false, reason: 'No date information available' }
+    // No date info at all — allow through (penalized elsewhere, not hard rejected)
+    return { compatible: true, reason: 'No date information — allowed' }
   }
 
   // One has date, other doesn't — check year in text of the one without
@@ -100,8 +97,8 @@ function datesCompatible(fpA, fpB) {
     return { compatible: false, reason: `Year mismatch (${dateYear} vs ${without.yearInText})` }
   }
 
-  // One has a date, the other has nothing — reject for safety
-  return { compatible: false, reason: 'One market missing date' }
+  // One has a date, the other has nothing — allow but with note
+  return { compatible: true, reason: 'One market missing date — allowed' }
 }
 
 // ── Entity Compatibility ─────────────────────────────
@@ -131,49 +128,54 @@ function entitySimilarity(a, b) {
 }
 
 function entityCompatible(fpA, fpB) {
-  // Both have primary entities
+  // Both have primary entities — check direct match
   if (fpA.entity && fpB.entity) {
     const sim = entitySimilarity(fpA.entity, fpB.entity)
     if (sim >= 0.8) {
-      return { compatible: true, reason: `Entity match: "${fpA.entity}" ~ "${fpB.entity}" (${sim})` }
+      return { compatible: true, reason: `Entity match: "${fpA.entity}" ~ "${fpB.entity}" (${sim})`, strength: 'strong' }
     }
-    return { compatible: false, reason: `Entity mismatch: "${fpA.entity}" vs "${fpB.entity}" (${sim})` }
   }
 
-  // Check allEntities overlap if primary is missing
+  // Check allEntities overlap (includes dynamically extracted proper nouns)
   if (fpA.allEntities.length > 0 && fpB.allEntities.length > 0) {
     const setA = new Set(fpA.allEntities.map(e => normalizeEntity(e)))
     const setB = new Set(fpB.allEntities.map(e => normalizeEntity(e)))
     let overlap = 0
+    const sharedEntities = []
     for (const e of setA) {
-      if (setB.has(e)) overlap++
-      // Also check surname containment
+      if (setB.has(e)) { overlap++; sharedEntities.push(e) }
       for (const f of setB) {
         if (e && f && e !== f) {
-          if (e.includes(f) || f.includes(e)) overlap++
+          if (e.includes(f) || f.includes(e)) { overlap++; sharedEntities.push(`${e}~${f}`) }
+          // Surname match: last word of multi-word names
+          const eLast = e.split(/\s+/).pop()
+          const fLast = f.split(/\s+/).pop()
+          if (eLast && fLast && eLast.length >= 4 && eLast === fLast) {
+            overlap++; sharedEntities.push(`surname:${eLast}`)
+          }
         }
       }
     }
     if (overlap > 0) {
-      return { compatible: true, reason: `Entity overlap (${overlap} shared)` }
+      return { compatible: true, reason: `Entity overlap (${sharedEntities.slice(0, 3).join(', ')})`, strength: overlap >= 2 ? 'strong' : 'weak' }
     }
-    return { compatible: false, reason: `No entity overlap: [${fpA.allEntities.join(', ')}] vs [${fpB.allEntities.join(', ')}]` }
+    // Entities exist on both sides but don't overlap — reject
+    return { compatible: false, reason: `No entity overlap: [${fpA.allEntities.slice(0, 3).join(', ')}] vs [${fpB.allEntities.slice(0, 3).join(', ')}]` }
   }
 
-  // If neither has entities — allow only for macro-type topics
+  // If neither has entities — allow for macro topics or same specific topic
   const macroTopics = new Set(['fed_rates', 'inflation', 'macro', 'geopolitical', 'climate'])
-  if (macroTopics.has(fpA.topic) && macroTopics.has(fpB.topic)) {
-    return { compatible: true, reason: 'No entities but matching macro topic' }
-  }
   if (fpA.allEntities.length === 0 && fpB.allEntities.length === 0) {
-    // Both have no entities — accept only if topics match and aren't generic
+    if (macroTopics.has(fpA.topic) && macroTopics.has(fpB.topic)) {
+      return { compatible: true, reason: 'No entities but matching macro topic', strength: 'weak' }
+    }
     if (fpA.topic === fpB.topic && fpA.topic !== 'generic_unknown') {
-      return { compatible: true, reason: 'No entities but same specific topic' }
+      return { compatible: true, reason: 'No entities but same specific topic', strength: 'weak' }
     }
     return { compatible: false, reason: 'No entities and no clear topic match' }
   }
 
-  // One has entities, the other doesn't — reject
+  // One has entities, the other doesn't — soft reject (not hard)
   return { compatible: false, reason: 'One market missing entities' }
 }
 
@@ -184,18 +186,25 @@ const COMPATIBLE_TOPIC_PAIRS = new Set([
   'price_target|crypto_price',
   'election|primary',
   'primary|election',
+  'election|nomination',
+  'nomination|election',
+  'election|geopolitical',
+  'geopolitical|election',
+  'entertainment|election',
+  'election|entertainment',
 ])
 
 function topicCompatible(fpA, fpB) {
-  if (fpA.topic === 'generic_unknown' || fpB.topic === 'generic_unknown') {
-    return { compatible: false, reason: `Unknown topic: "${fpA.topic}" / "${fpB.topic}"` }
-  }
-  if (fpA.topic === fpB.topic) {
+  if (fpA.topic === fpB.topic && fpA.topic !== 'generic_unknown') {
     return { compatible: true, reason: `Same topic: ${fpA.topic}` }
   }
   const pair = `${fpA.topic}|${fpB.topic}`
   if (COMPATIBLE_TOPIC_PAIRS.has(pair)) {
     return { compatible: true, reason: `Compatible topics: ${fpA.topic} <> ${fpB.topic}` }
+  }
+  // If one or both are generic_unknown, allow through with penalty (don't hard reject)
+  if (fpA.topic === 'generic_unknown' || fpB.topic === 'generic_unknown') {
+    return { compatible: true, reason: `Topic unclear: "${fpA.topic}" / "${fpB.topic}"`, weak: true }
   }
   return { compatible: false, reason: `Incompatible topics: "${fpA.topic}" vs "${fpB.topic}"` }
 }
@@ -289,27 +298,34 @@ function keywordOverlapScore(fpA, fpB) {
 
 // ── Candidate Scoring ────────────────────────────────
 
-const MATCH_THRESHOLD = 80
+const MATCH_THRESHOLD = 65
 
 function scoreCandidate(fpA, fpB) {
   let score = 0
   const breakdown = []
 
-  // 1. Entity match (+40)
+  // 1. Entity match (+40 / -20)
   const entity = entityCompatible(fpA, fpB)
   if (entity.compatible) {
-    score += 40
-    breakdown.push(`+40 entity: ${entity.reason}`)
+    const entityPoints = entity.strength === 'strong' ? 40 : 25
+    score += entityPoints
+    breakdown.push(`+${entityPoints} entity: ${entity.reason}`)
   } else {
-    // Entity incompatibility is a hard reject in most cases
-    return { score: -1, breakdown: [`REJECT entity: ${entity.reason}`], rejected: true, rejectReason: entity.reason }
+    // Entity mismatch is a strong penalty but not always a hard reject
+    // Hard reject only if both sides have entities and they don't overlap at all
+    if (fpA.allEntities.length > 0 && fpB.allEntities.length > 0) {
+      return { score: -1, breakdown: [`REJECT entity: ${entity.reason}`], rejected: true, rejectReason: entity.reason }
+    }
+    score -= 20
+    breakdown.push(`-20 entity: ${entity.reason}`)
   }
 
-  // 2. Topic match (+20)
+  // 2. Topic match (+20 / -10)
   const topic = topicCompatible(fpA, fpB)
   if (topic.compatible) {
-    score += 20
-    breakdown.push(`+20 topic: ${topic.reason}`)
+    const topicPoints = topic.weak ? 5 : 20
+    score += topicPoints
+    breakdown.push(`+${topicPoints} topic: ${topic.reason}`)
   } else {
     return { score: -1, breakdown: [`REJECT topic: ${topic.reason}`], rejected: true, rejectReason: topic.reason }
   }

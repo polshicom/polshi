@@ -50,6 +50,17 @@ const KNOWN_ENTITIES = [
   { pattern: /\b(Vladimir\s+Putin|Putin)\b/i, canonical: 'Putin' },
   { pattern: /\b(Xi\s+Jinping|Xi)\b/i, canonical: 'Xi Jinping' },
   { pattern: /\b(Benjamin\s+Netanyahu|Netanyahu)\b/i, canonical: 'Netanyahu' },
+  { pattern: /\b(Naftali\s+Bennett|Bennett)\b/i, canonical: 'Naftali Bennett' },
+  { pattern: /\b(Yair\s+Lapid|Lapid)\b/i, canonical: 'Yair Lapid' },
+  { pattern: /\b(Benny\s+Gantz|Gantz)\b/i, canonical: 'Benny Gantz' },
+  { pattern: /\b(Yoav\s+Gallant|Gallant)\b/i, canonical: 'Yoav Gallant' },
+  { pattern: /\b(Keir\s+Starmer|Starmer)\b/i, canonical: 'Keir Starmer' },
+  { pattern: /\b(Emmanuel\s+Macron|Macron)\b/i, canonical: 'Emmanuel Macron' },
+  { pattern: /\b(Narendra\s+Modi|Modi)\b/i, canonical: 'Narendra Modi' },
+  { pattern: /\b(Justin\s+Trudeau|Trudeau)\b/i, canonical: 'Justin Trudeau' },
+  { pattern: /\b(Olaf\s+Scholz|Scholz)\b/i, canonical: 'Olaf Scholz' },
+  { pattern: /\b(Friedrich\s+Merz|Merz)\b/i, canonical: 'Friedrich Merz' },
+  { pattern: /\b(Pope\s+Francis|Francis)\b/i, canonical: 'Pope Francis' },
   // Companies / Orgs
   { pattern: /\b(Tesla|TSLA)\b/i, canonical: 'Tesla' },
   { pattern: /\b(SpaceX)\b/i, canonical: 'SpaceX' },
@@ -157,11 +168,25 @@ function extractEntities(text) {
     }
   }
 
-  // Also try to extract unknown proper names from "Will X ..." pattern
+  // Extract unknown proper names — multi-word capitalized phrases
+  const multiWordNames = text.matchAll(/\b([A-Z][a-z]+(?:\s+(?:[A-Z]\.?\s*)?[A-Z][a-z]+)+)\b/g)
+  for (const m of multiWordNames) {
+    const name = m[1].trim()
+    const lc = name.toLowerCase()
+    const skip = new Set(['prime minister', 'united states', 'united arab', 'james bond',
+      'millennium prize', 'secretary general', 'democratic party', 'republican party',
+      'vice president', 'world cup', 'super bowl', 'world series', 'stanley cup',
+      'champions league', 'premier league', 'federal reserve'])
+    if (skip.has(lc)) continue
+    if (!found.some(e => e.toLowerCase() === lc)) {
+      found.push(name)
+    }
+  }
+
+  // "Will X ..." pattern
   const willMatch = text.match(/^Will\s+([A-Z][a-z]+(?:\s+[A-Z]\.?\s*)?(?:[A-Z][a-z]+)?)\s+/i)
   if (willMatch) {
     const name = willMatch[1].trim()
-    // Only add if not already captured and looks like a proper name (2+ words or known)
     if (name.split(/\s+/).length >= 2 && !found.some(e => e.toLowerCase() === name.toLowerCase())) {
       found.push(name)
     }
@@ -173,6 +198,21 @@ function extractEntities(text) {
     const candidate = dashMatch[1].trim()
     if (candidate.length >= 3 && !found.some(e => e.toLowerCase() === candidate.toLowerCase())) {
       found.push(candidate)
+    }
+  }
+
+  // Single capitalized words (4+ chars, not common words)
+  const singleCaps = text.matchAll(/\b([A-Z][a-z]{3,})\b/g)
+  const commonSingles = new Set(['Will', 'What', 'Which', 'Before', 'After', 'During',
+    'Between', 'Under', 'Over', 'Next', 'First', 'Last', 'Prime', 'Minister',
+    'President', 'Governor', 'Chancellor', 'Secretary', 'General', 'Election',
+    'Party', 'Democratic', 'Republican', 'House', 'Senate', 'Congress', 'Court',
+    'January', 'February', 'March', 'April', 'June', 'July', 'August',
+    'September', 'October', 'November', 'December', 'Actor', 'Film', 'Problem',
+    'Prize', 'Winner', 'Champion', 'Championship'])
+  for (const m of singleCaps) {
+    if (!commonSingles.has(m[1]) && !found.some(e => e.toLowerCase() === m[1].toLowerCase())) {
+      found.push(m[1])
     }
   }
 
@@ -262,12 +302,21 @@ const TOPIC_RULES = [
   // Geopolitical
   { pattern: /\b(war|invasion|military|ceasefire|peace\s+deal)\b/i, topic: 'geopolitical' },
   { pattern: /\b(annex|territory|sovereignty)\b/i, topic: 'geopolitical' },
+  { pattern: /\b(prime\s+minister|chancellor|head\s+of\s+state)\b/i, topic: 'election' },
+  { pattern: /\b(succeed|successor)\b/i, topic: 'election' },
   // Science / Tech
   { pattern: /\b(orbit|mars|moon|launch|starship|rocket)\b/i, topic: 'space' },
   { pattern: /\b(AGI|artificial general intelligence)\b/i, topic: 'tech' },
   { pattern: /\b(robotaxi|autonomous|self.driving)\b/i, topic: 'tech' },
   // Climate
   { pattern: /\b(temperature|warming|degrees|climate|hurricane|wildfire)\b/i, topic: 'climate' },
+  // Entertainment / Culture
+  { pattern: /\b(james\s+bond|007)\b/i, topic: 'entertainment' },
+  { pattern: /\b(oscar|academy\s+award|golden\s+globe|grammy|emmy|nobel)\b/i, topic: 'entertainment' },
+  { pattern: /\b(pope|papacy|pontiff|cardinal)\b/i, topic: 'election' },
+  { pattern: /\b(nato|secretary\s+general)\b/i, topic: 'election' },
+  // Science prizes
+  { pattern: /\b(millennium\s+prize|fields\s+medal|turing\s+award)\b/i, topic: 'tech' },
 ]
 
 function detectTopic(text) {

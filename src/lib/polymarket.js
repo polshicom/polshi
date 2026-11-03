@@ -21,8 +21,8 @@ function parseJsonField(val) {
 export async function fetchPolymarketMarkets() {
   // Fetch multiple pages to get broader coverage (including sports, crypto, etc.)
   const allData = []
-  const pageSize = 200
-  const maxPages = 3
+  const pageSize = 100
+  const maxPages = 20
 
   for (let page = 0; page < maxPages; page++) {
     const params = new URLSearchParams({
