@@ -155,7 +155,13 @@ async function runCycle() {
     let markets = matchMarkets(polymarkets, kalshiMarkets)
     timings.matchMs = Date.now() - tMatch
 
+    const preFilterCount = markets.length
+    const preFilterEdges = markets.map(m => m.edge)
     console.log(`[scanner-worker] Matched ${markets.length} pairs (${timings.matchMs}ms)`)
+    if (markets.length > 0) {
+      console.log(`[scanner-worker] Pre-filter edges: ${preFilterEdges.slice(0, 10).join(', ')}`)
+      console.log(`[scanner-worker] Pre-filter sample: ${markets[0]?.question?.slice(0, 60)} edge=${markets[0]?.edge} conf=${markets[0]?.matchConfidence}`)
+    }
 
     // ── AI Verify (PRODUCTION — regex heuristics) ────
     const tVerify = Date.now()
@@ -211,11 +217,16 @@ async function runCycle() {
       })
     }
 
+    const preEdgeFilter = markets.length
     markets = markets.filter(m => m.edge != null && m.edge > 0 && m.edge <= 15)
+    const postEdgeFilter = markets.length
+    const preAiFilter = markets.length
     markets = markets.filter(m => {
       if (m.aiConfidence == null) return true
       return m.aiConfidence >= 70
     })
+    const postAiFilter = markets.length
+    console.log(`[scanner-worker] Filter: pre=${preFilterCount} → postVerify=${preEdgeFilter} → edge=${postEdgeFilter} → ai=${postAiFilter}`)
 
     markets = markets.map(m => {
       const { debug, ...rest } = m
@@ -260,6 +271,14 @@ async function runCycle() {
       scanned: exploreMarkets.length,
       arbCount: safeArbs.length,
       totalEdge,
+      _debug: {
+        preFilterCount,
+        preEdgeFilter,
+        postEdgeFilter,
+        preAiFilter,
+        postAiFilter,
+        sampleEdges: preFilterEdges.slice(0, 20),
+      },
     }, STATS_TTL)
 
     lastRunMs = Date.now()
