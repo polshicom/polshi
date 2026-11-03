@@ -330,33 +330,31 @@ function scoreCandidate(fpA, fpB) {
     return { score: -1, breakdown: [`REJECT topic: ${topic.reason}`], rejected: true, rejectReason: topic.reason }
   }
 
-  // 3. Action match (+15)
+  // 3. Action match (+10 / -5)
   if (fpA.action !== 'unknown' && fpB.action !== 'unknown') {
     if (fpA.action === fpB.action) {
-      score += 15
-      breakdown.push(`+15 action: ${fpA.action}`)
+      score += 10
+      breakdown.push(`+10 action: ${fpA.action}`)
     } else {
-      score -= 15
-      breakdown.push(`-15 action mismatch: ${fpA.action} vs ${fpB.action}`)
+      score -= 5
+      breakdown.push(`-5 action mismatch: ${fpA.action} vs ${fpB.action}`)
     }
   } else if (fpA.action === 'unknown' && fpB.action === 'unknown') {
-    // Both unknown — mild penalty
-    score -= 5
-    breakdown.push('-5 both actions unknown')
+    score -= 0
+    breakdown.push('0 both actions unknown')
   } else {
-    // One unknown — penalty
-    score -= 10
-    breakdown.push(`-10 action unclear: ${fpA.action} / ${fpB.action}`)
+    score -= 0
+    breakdown.push(`0 action unclear: ${fpA.action} / ${fpB.action}`)
   }
 
-  // 4. Date compatibility (+15)
+  // 4. Date compatibility (+10 / -5)
   const date = datesCompatible(fpA, fpB)
   if (date.compatible) {
-    score += 15
-    breakdown.push(`+15 date: ${date.reason}`)
+    score += 10
+    breakdown.push(`+10 date: ${date.reason}`)
   } else {
-    score -= 20
-    breakdown.push(`-20 date: ${date.reason}`)
+    score -= 5
+    breakdown.push(`-5 date: ${date.reason}`)
   }
 
   // 5. Numeric target match (+10)
