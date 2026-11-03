@@ -78,6 +78,17 @@ create table if not exists user_settings (
   updated_at timestamptz default now()
 );
 
+-- ── Match Cache (LLM verification results) ──────
+
+create table if not exists match_cache (
+  pair_hash text primary key,
+  poly_question text not null,
+  kalshi_question text not null,
+  result jsonb not null,
+  model_used text not null default 'claude-haiku-4-5-20251001',
+  created_at timestamptz default now()
+);
+
 -- ── Indexes ───────────────────────────────────────
 
 create index if not exists idx_accounts_user on accounts("userId");

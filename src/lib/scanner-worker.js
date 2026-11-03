@@ -4,6 +4,9 @@
  * Precomputes market comparisons on a 30-second interval and stores
  * the fully processed results in cache. The API route serves from
  * cache immediately — users never wait on fetch/match/verify.
+ *
+ * Production pipeline: Fetch → matchMarkets → aiVerifyMatches → Cache
+ * Shadow pipeline (async, non-blocking): Fetch → blocker → GPT-4o mini → compare
  */
 
 import { cacheSet, cacheGetWithMeta } from './cache.js'
@@ -13,6 +16,7 @@ import { matchMarkets, categorize } from './matcher.js'
 import { aiVerifyMatches } from './ai-verify.js'
 import { sendDiscordAlert, formatMarketAlert } from './discord.js'
 import { fetchAllTrades } from './trades.js'
+import { compareAndRecord, getComparisonReport } from './pipeline-compare.js'
 
 const CACHE_KEY = 'matched_markets_v2'
 const TOP_ARB_KEY = 'top_arb_of_day'
@@ -20,13 +24,15 @@ const EXPLORE_KEY = 'explore_markets'
 const STATS_KEY = 'scanner_stats'
 const WHALE_YESTERDAY_KEY = 'whale_yesterday'
 const WHALE_TRADES_KEY = 'whale_trades'
-const CACHE_TTL = 120_000 // 2 minutes (worker refreshes every 30s, so data is always fresh)
-const TOP_ARB_TTL = 900_000 // 15 minutes (long-lived, updated every cycle)
-const EXPLORE_TTL = 120_000 // 2 minutes (same as scanner cache)
-const STATS_TTL = 120_000 // 2 minutes
-const WHALE_YESTERDAY_TTL = 300_000 // 5 minutes
-const WHALE_TRADES_TTL = 60_000 // 60 seconds
-const REFRESH_INTERVAL = 30_000 // 30 seconds
+const COMPARE_KEY = 'pipeline_comparison'
+const CACHE_TTL = 120_000
+const TOP_ARB_TTL = 900_000
+const EXPLORE_TTL = 120_000
+const STATS_TTL = 120_000
+const WHALE_YESTERDAY_TTL = 300_000
+const WHALE_TRADES_TTL = 60_000
+const COMPARE_TTL = 300_000
+const REFRESH_INTERVAL = 30_000
 
 function formatVolume(vol) {
   if (vol >= 1_000_000) return `$${(vol / 1_000_000).toFixed(1)}M`
@@ -51,17 +57,10 @@ let lastRunTimings = null
 let consecutiveErrors = 0
 let firstCyclePromise = null
 
-/**
- * Returns timing data from the last worker run (for diagnostics).
- */
 export function getLastTimings() {
   return lastRunTimings
 }
 
-/**
- * Single computation cycle: fetch → match → verify → cache.
- * Never throws — errors are caught and logged.
- */
 async function runCycle() {
   const t0 = Date.now()
   const timings = { fetchMs: 0, matchMs: 0, verifyMs: 0, postProcessMs: 0, totalMs: 0 }
@@ -88,7 +87,7 @@ async function runCycle() {
 
     console.log(`[scanner-worker] Fetched ${polymarkets.length} Polymarket + ${kalshiMarkets.length} Kalshi markets (${timings.fetchMs}ms)`)
 
-    // ── Explore cache (raw combined market list for explore/hub/volume) ──
+    // ── Explore cache ──
     const exploreMarkets = []
     for (const m of polymarkets) {
       exploreMarkets.push({
@@ -123,17 +122,12 @@ async function runCycle() {
     exploreMarkets.sort((a, b) => b.volume - a.volume)
     cacheSet(EXPLORE_KEY, exploreMarkets, EXPLORE_TTL)
 
-    // ── Whale trades (accumulate significant trades over time) ──
+    // ── Whale trades ──
     fetchAllTrades()
       .then(trades => {
-        // Filter to notable trades only (scored on full batch for accuracy)
         const notable = trades.filter(t => t.whaleScore >= 30 || t.dollarValue >= 100)
-
-        // Merge with existing cached trades (rolling accumulation)
         const existing = cacheGetWithMeta(WHALE_TRADES_KEY).value || []
         const merged = [...notable, ...existing]
-
-        // Deduplicate by time+platform+market+dollarValue
         const seen = new Set()
         const deduped = []
         for (const t of merged) {
@@ -143,17 +137,12 @@ async function runCycle() {
             deduped.push(t)
           }
         }
-
-        // Sort newest first, drop trades older than 24h, cap at 500
         const cutoff = Date.now() - 24 * 60 * 60 * 1000
         const fresh = deduped
           .filter(t => new Date(t.time).getTime() > cutoff)
           .sort((a, b) => new Date(b.time) - new Date(a.time))
           .slice(0, 500)
-
         cacheSet(WHALE_TRADES_KEY, fresh, WHALE_TRADES_TTL)
-
-        // Whale of the Day: biggest trade from accumulated pool
         if (fresh.length > 0) {
           const top = fresh.reduce((best, t) => t.dollarValue > best.dollarValue ? t : best, fresh[0])
           cacheSet(WHALE_YESTERDAY_KEY, top, WHALE_YESTERDAY_TTL)
@@ -161,14 +150,14 @@ async function runCycle() {
       })
       .catch(err => console.error('[scanner-worker] Whale trades error:', err.message))
 
-    // ── Match ────────────────────────────────────────
+    // ── Match (PRODUCTION — old matcher) ─────────────
     const tMatch = Date.now()
     let markets = matchMarkets(polymarkets, kalshiMarkets)
     timings.matchMs = Date.now() - tMatch
 
     console.log(`[scanner-worker] Matched ${markets.length} pairs (${timings.matchMs}ms)`)
 
-    // ── AI Verify (non-blocking — runs here in background, never on user request) ──
+    // ── AI Verify (PRODUCTION — regex heuristics) ────
     const tVerify = Date.now()
     const aiResults = await aiVerifyMatches(markets).catch((err) => {
       console.error('[scanner-worker] AI verify error:', err.message)
@@ -176,7 +165,7 @@ async function runCycle() {
     })
     timings.verifyMs = Date.now() - tVerify
 
-    // ── Post-process ─────────────────────────────────
+    // ── Post-process (PRODUCTION) ────────────────────
     const tPost = Date.now()
 
     if (aiResults) {
@@ -211,7 +200,6 @@ async function runCycle() {
         }
       })
 
-      // Sort: verified first, then possible, then unverified, by edge desc
       markets.sort((a, b) => {
         if (a.verified && !b.verified) return -1
         if (!a.verified && b.verified) return 1
@@ -223,14 +211,12 @@ async function runCycle() {
       })
     }
 
-    // Filter: remove 0¢ edge, >15¢ edge, and AI < 70
     markets = markets.filter(m => m.edge != null && m.edge > 0 && m.edge <= 15)
     markets = markets.filter(m => {
       if (m.aiConfidence == null) return true
       return m.aiConfidence >= 70
     })
 
-    // Strip heavy debug/raw fields before caching — reduce memory + payload
     markets = markets.map(m => {
       const { debug, ...rest } = m
       return rest
@@ -239,10 +225,10 @@ async function runCycle() {
     timings.postProcessMs = Date.now() - tPost
     timings.totalMs = Date.now() - t0
 
-    // ── Cache ────────────────────────────────────────
+    // ── Cache for API (PRODUCTION) ───────────────────
     cacheSet(CACHE_KEY, markets, CACHE_TTL)
 
-    // ── Top Arb of the Day (separate lightweight cache) ──
+    // ── Top Arb ─────────────────────────────────────
     const bestArb = markets.find(m => m.isArbSafe && m.edge > 0)
     if (bestArb) {
       cacheSet(TOP_ARB_KEY, {
@@ -264,7 +250,7 @@ async function runCycle() {
       cacheSet(TOP_ARB_KEY, null, TOP_ARB_TTL)
     }
 
-    // ── Scanner stats (lightweight summary for StatusBar) ──
+    // ── Scanner stats ───────────────────────────────
     const safeArbs = markets.filter(m => m.isArbSafe && m.edge > 0)
     let totalEdge = 0
     for (const m of safeArbs) {
@@ -285,13 +271,19 @@ async function runCycle() {
       `(fetch=${timings.fetchMs}ms match=${timings.matchMs}ms verify=${timings.verifyMs}ms total=${timings.totalMs}ms)`
     )
 
-    // ── Discord alerts (fire-and-forget) ─────────────
+    // ── Discord alerts ──────────────────────────────
     const threshold = parseInt(process.env.DISCORD_ALERT_THRESHOLD || '5', 10)
     const alertMarkets = markets.filter(m => m.isArbSafe && m.difference >= threshold)
     if (alertMarkets.length > 0 && process.env.DISCORD_WEBHOOK_URL) {
       const msg = alertMarkets.map(formatMarketAlert).join('\n\n---\n\n')
       sendDiscordAlert(`🚨 **High-Spread Alert**\n\n${msg}`).catch(() => {})
     }
+
+    // ── Shadow pipeline (async, non-blocking, never affects UI) ──
+    compareAndRecord(polymarkets, kalshiMarkets, markets)
+      .then(() => cacheSet(COMPARE_KEY, getComparisonReport(), COMPARE_TTL))
+      .catch(err => console.error('[scanner-worker] Shadow pipeline error:', err.message))
+
   } catch (err) {
     consecutiveErrors++
     timings.totalMs = Date.now() - t0
@@ -300,35 +292,18 @@ async function runCycle() {
   }
 }
 
-/**
- * Ensures the background worker is running.
- * Safe to call multiple times — only starts once.
- */
 export function ensureWorkerRunning() {
   if (workerRunning) return
   workerRunning = true
 
   console.log('[scanner-worker] Starting background worker (30s interval)')
-
-  // Run first cycle immediately, store promise so API routes can await it
   firstCyclePromise = runCycle()
-
-  // Then repeat on interval
   intervalHandle = setInterval(runCycle, REFRESH_INTERVAL)
-
-  // Prevent interval from keeping Node alive during graceful shutdown
   if (intervalHandle?.unref) intervalHandle.unref()
 }
 
-/**
- * Waits for the first worker cycle to complete (cold-start).
- * Returns immediately if the worker has already completed a cycle.
- */
 export async function waitForFirstCycle() {
   if (firstCyclePromise) await firstCyclePromise
 }
 
-/**
- * Returns the cache key used by the worker (for the API route).
- */
-export { CACHE_KEY, TOP_ARB_KEY, EXPLORE_KEY, STATS_KEY, WHALE_YESTERDAY_KEY, WHALE_TRADES_KEY }
+export { CACHE_KEY, TOP_ARB_KEY, EXPLORE_KEY, STATS_KEY, WHALE_YESTERDAY_KEY, WHALE_TRADES_KEY, COMPARE_KEY }

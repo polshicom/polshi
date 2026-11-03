@@ -110,6 +110,8 @@ export async function fetchKalshiMarkets() {
           yesSubTitle: subTitle,
           url,
           source: 'kalshi',
+          _eventTitle: event.title || '',
+          _eventTicker: eventTicker,
           _raw: { bid: rawBid, ask: rawAsk, last: rawLast, ticker: mkt.ticker },
         })
       }
