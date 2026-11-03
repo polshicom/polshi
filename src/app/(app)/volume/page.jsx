@@ -90,7 +90,7 @@ export default function VolumePage() {
               </div>
               <div className="vol-col-volume">{formatVolume(m.volume)}</div>
               <div className="vol-col-prob">
-                {m.probability != null ? `${Math.round(m.probability * 100)}%` : '—'}
+                {m.prob != null ? `${m.prob}%` : '—'}
               </div>
             </div>
           ))

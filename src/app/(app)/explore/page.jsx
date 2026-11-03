@@ -2,7 +2,7 @@ import { auth } from '../../../lib/auth'
 import MarketCards from '../../../components/dashboard/MarketCards'
 
 export const metadata = {
-  title: 'Explore Markets – Polshi',
+  title: 'Matched Markets – Polshi',
 }
 
 export default async function ExplorePage() {
@@ -13,9 +13,9 @@ export default async function ExplorePage() {
     <>
       <div className="dashboard-header">
         <div>
-          <h1 className="dashboard-title">All Markets</h1>
+          <h1 className="dashboard-title">Matched Markets</h1>
           <p className="dashboard-subtitle">
-            Every event on Kalshi and Polymarket, unified. Filter by category, sort by volume, and compare prices.
+            Events matched across Kalshi and Polymarket. Compare prices, spot spreads, and find arbitrage opportunities.
           </p>
         </div>
       </div>

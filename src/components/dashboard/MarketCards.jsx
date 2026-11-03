@@ -106,6 +106,9 @@ function MatchedMarketCard({ market: m }) {
       </div>
 
       <div className="explore-card-question">{m.question}</div>
+      {m._kalshiQuestion && m._kalshiQuestion !== m.question && (
+        <div className="explore-card-kalshi-q">{m._kalshiQuestion}</div>
+      )}
 
       <div className="explore-card-prices">
         <div className="explore-price-row">

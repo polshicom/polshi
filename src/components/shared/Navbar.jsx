@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { PolshiLogo } from '../icons/PolshiLogo'
 import ThemeToggle from '../landing/ThemeToggle'
 
@@ -59,16 +60,16 @@ function GlassFilter() {
 }
 
 export default function Navbar({ user }) {
+  const [mobileOpen, setMobileOpen] = useState(false)
+
   return (
     <>
       <GlassFilter />
       <header className="glass-navbar">
-        {/* Glass layers */}
         <div className="glass-layer glass-blur" />
         <div className="glass-layer glass-tint" />
         <div className="glass-layer glass-shine" />
 
-        {/* Content */}
         <div className="glass-navbar-inner">
           <a href="/" className="navbar-logo">
             <PolshiLogo />
@@ -101,9 +102,32 @@ export default function Navbar({ user }) {
                 <a href="/signup" className="glass-signup">Sign in</a>
               </>
             )}
+            <button
+              className="navbar-hamburger"
+              onClick={() => setMobileOpen(v => !v)}
+              aria-label="Toggle menu"
+            >
+              {mobileOpen ? (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              ) : (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12h16"/><path d="M4 6h16"/><path d="M4 18h16"/></svg>
+              )}
+            </button>
           </div>
         </div>
       </header>
+
+      {mobileOpen && (
+        <nav className="mobile-nav-dropdown" onClick={() => setMobileOpen(false)}>
+          <a href="/explore" className="mobile-nav-link">Markets</a>
+          <a href="/arbitrage" className="mobile-nav-link">Scanner</a>
+          <a href="/whales" className="mobile-nav-link">Whales</a>
+          <a href="/hub" className="mobile-nav-link">Hub</a>
+          <a href="/pricing" className="mobile-nav-link">Pricing</a>
+          {!user && <a href="/login" className="mobile-nav-link">Log in</a>}
+          {user && <a href="/settings" className="mobile-nav-link">Settings</a>}
+        </nav>
+      )}
     </>
   )
 }

@@ -43,12 +43,11 @@ export async function GET(request) {
 
     // Strip internal fields before sending to client
     const cleaned = paged.map(m => {
-      const { _kalshiQuestion, _polyDescription, _kalshiDescription, _fingerprints, ...rest } = m
+      const { _polyDescription, _kalshiDescription, _fingerprints, ...rest } = m
 
       if (debug) {
         return {
           ...rest,
-          _kalshiQuestion,
           _debug: {
             fingerprints: _fingerprints,
             matchConfidence: m.matchConfidence,

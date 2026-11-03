@@ -279,7 +279,29 @@ html[data-theme="dark"] .glass-signup {
   border-radius: var(--radius-rounded);
 }
 
-/* ── Mobile Navbar ─────────────────────────────── */
+/* ── Hamburger Button (hidden on desktop) ──────── */
+
+.navbar-hamburger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  color: var(--color-text-secondary);
+  transition: color 0.15s, background 0.15s;
+}
+
+.navbar-hamburger:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-translucent);
+}
+
+/* ── Mobile Nav Dropdown ───────────────────────── */
+
+.mobile-nav-dropdown {
+  display: none;
+}
 
 @media (max-width: 768px) {
   .glass-navbar {
@@ -293,12 +315,57 @@ html[data-theme="dark"] .glass-signup {
     display: none;
   }
 
-  .navbar-login {
+  .navbar-login,
+  .glass-signup {
     display: none;
+  }
+
+  .navbar-hamburger {
+    display: flex;
   }
 
   .glass-navbar-inner {
     padding: 0 14px;
+  }
+
+  .app-main {
+    padding-top: 72px;
+  }
+
+  .mobile-nav-dropdown {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 64px;
+    left: 8px;
+    right: 8px;
+    z-index: 99;
+    background: var(--color-bg-primary);
+    border: 1px solid var(--color-border-primary);
+    border-radius: 12px;
+    padding: 8px;
+    box-shadow: var(--shadow-elevated);
+    animation: mobile-nav-in 0.15s ease-out;
+  }
+
+  @keyframes mobile-nav-in {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .mobile-nav-link {
+    display: block;
+    padding: 12px 16px;
+    font-size: 15px;
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-secondary);
+    border-radius: 8px;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .mobile-nav-link:hover {
+    background: var(--color-bg-secondary);
+    color: var(--color-text-primary);
   }
 }
 
@@ -1225,8 +1292,8 @@ html[data-theme="dark"] .dominance-secondary {
   font-size: 11px;
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-quaternary);
-  background: rgba(255, 255, 255, 0.02);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border-primary);
   user-select: none;
 }
 
@@ -1266,13 +1333,13 @@ html[data-theme="dark"] .dominance-secondary {
   padding: 10px 20px;
   font-size: 13px;
   color: var(--color-text-secondary);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid var(--color-border-primary);
   transition: background 0.15s;
   cursor: default;
 }
 
 .mt-row:hover {
-  background: rgba(255, 255, 255, 0.025);
+  background: var(--color-bg-secondary);
 }
 
 .mt-row-last {
@@ -1299,6 +1366,16 @@ html[data-theme="dark"] .dominance-secondary {
   overflow: hidden;
   text-overflow: ellipsis;
   line-height: 1.4;
+}
+
+.mt-kalshi-question {
+  display: block;
+  font-size: 11px;
+  color: var(--color-text-quaternary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
 }
 
 .mt-badges {
@@ -1387,7 +1464,7 @@ html[data-theme="dark"] .dominance-secondary {
 
 /* Feedback row */
 .mt-feedback {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid var(--color-border-primary);
 }
 
 /* Empty state */
@@ -1778,13 +1855,14 @@ html[data-theme="dark"] .dominance-secondary {
 }
 
 .upgrade-card {
-  background: rgba(28, 28, 31, 0.8);
+  background: var(--color-bg-primary);
   border: 1px solid var(--color-border-secondary);
   border-radius: var(--radius-12);
   padding: 24px 32px;
   text-align: center;
   backdrop-filter: blur(20px);
   max-width: 400px;
+  box-shadow: var(--shadow-elevated);
 }
 
 .upgrade-card h3 {
@@ -2423,6 +2501,16 @@ html[data-theme="dark"] .account-cancel-warning {
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.explore-card-kalshi-q {
+  font-size: 11px;
+  color: var(--color-text-quaternary);
+  line-height: 1.3;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .explore-card-footer {

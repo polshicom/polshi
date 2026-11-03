@@ -9,6 +9,13 @@ const MONTHLY_DATA = [
   { month: 'Jan', return: 2.1 },
   { month: 'Feb', return: 5.4 },
   { month: 'Mar', return: 8.7 },
+  { month: 'Apr', return: 10.2 },
+  { month: 'May', return: 12.8 },
+  { month: 'Jun', return: 14.1 },
+  { month: 'Jul', return: 16.5 },
+  { month: 'Aug', return: 18.3 },
+  { month: 'Sep', return: 20.9 },
+  { month: 'Oct', return: 23.4 },
 ]
 
 const YTD_RETURN = MONTHLY_DATA[MONTHLY_DATA.length - 1].return

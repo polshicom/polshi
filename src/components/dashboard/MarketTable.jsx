@@ -316,7 +316,7 @@ export default function MarketTable({ initialMarkets, isPro, refreshInterval }) 
   }
 
   // Free users: show 5 rows that have at least 1¢ edge AND 100% AI confidence, minus dismissed
-  const freeEligible = isPro ? [] : filtered.filter(m => m.edge != null && m.edge >= 1 && (m.aiConfidence ?? 0) === 100 && !freeDismissed.has(m.question))
+  const freeEligible = isPro ? [] : filtered.filter(m => m.edge != null && m.edge >= 1 && (m.aiConfidence ?? 0) >= 70 && !freeDismissed.has(m.question))
   const visibleRows = isPro ? filtered : freeEligible.slice(0, FREE_LIMIT)
   const realBlurredRows = isPro ? [] : freeEligible.slice(FREE_LIMIT)
   const fakeRows = isPro ? [] : FAKE_PREMIUM_ROWS
@@ -535,6 +535,9 @@ function MarketRow({ market: m, blurred, isPro, stake = 1000, onVerifyYes, onVer
         <div className="mt-col-market">
           <div className="mt-market-info">
             <span className="mt-question">{m.question}</span>
+            {m._kalshiQuestion && m._kalshiQuestion !== m.question && (
+              <span className="mt-kalshi-question">{m._kalshiQuestion}</span>
+            )}
             <div className="mt-badges">
               {isCommunityVerified && (
                 <span className="community-badge">Community Verified</span>
