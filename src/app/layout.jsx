@@ -17,6 +17,18 @@ export const metadata = {
   title: 'Polshi – Compare Polymarket vs Kalshi prices',
   description:
     'See where Polymarket and Kalshi disagree on the same event. Find the biggest price differences and act before they close.',
+  metadataBase: new URL('https://polshi.com'),
+  openGraph: {
+    title: 'Polshi – The Prediction Market Terminal',
+    description: 'Find arbitrage between Polymarket and Kalshi. Track whale trades. Spot edges before they close.',
+    siteName: 'Polshi',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Polshi – The Prediction Market Terminal',
+    description: 'Find arbitrage between Polymarket and Kalshi. Track whale trades. Spot edges before they close.',
+  },
 }
 
 export default function RootLayout({ children }) {
