@@ -335,7 +335,8 @@ function scoreCandidate(fpA, fpB) {
     score += topicPoints
     breakdown.push(`+${topicPoints} topic: ${topic.reason}`)
   } else {
-    return { score: -1, breakdown: [`REJECT topic: ${topic.reason}`], rejected: true, rejectReason: topic.reason }
+    score -= 25
+    breakdown.push(`-25 topic: ${topic.reason}`)
   }
 
   // 3. Action match (+10 / -5)

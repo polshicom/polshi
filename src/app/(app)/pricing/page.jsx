@@ -2,6 +2,25 @@
 
 import { useState } from 'react'
 
+const CHECK = (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+    <path d="M13.5 4.5L6.5 11.5L2.5 7.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+
+const LOCK = (
+  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+    <rect x="3" y="7" width="10" height="7" rx="2" stroke="currentColor" strokeWidth="1.3" />
+    <path d="M5 7V5a3 3 0 016 0v2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+  </svg>
+)
+
+const ARROW = (
+  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+    <path d="M3 8h10m0 0L9 4m4 4L9 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+
 export default function PricingPage() {
   const [yearly, setYearly] = useState(false)
 
@@ -18,121 +37,172 @@ export default function PricingPage() {
   }
 
   return (
-    <>
-      <div className="pp-header">
+    <div className="pp">
+      <div className="pp-hero">
+        <div className="pp-badge">Pricing</div>
         <h1 className="pp-title">One arb pays for the month</h1>
         <p className="pp-subtitle">
-          Free tier gets you started. Pro unlocks the full scanner, live whale feeds, and every market on both platforms.
+          Start free, upgrade when you're ready. Pro unlocks the full scanner, live prices, and whale feeds across every market.
         </p>
+
         <div className="pp-toggle">
-          <button
-            className={`pp-toggle-btn ${!yearly ? 'active' : ''}`}
-            onClick={() => setYearly(false)}
-          >
-            Monthly
-          </button>
-          <button
-            className={`pp-toggle-btn ${yearly ? 'active' : ''}`}
-            onClick={() => setYearly(true)}
-          >
-            Yearly
-            <span className="pp-save-tag">Save 21%</span>
-          </button>
+          <div className="pp-toggle-track" data-active={yearly ? 'right' : 'left'}>
+            <button
+              className={`pp-toggle-btn ${!yearly ? 'active' : ''}`}
+              onClick={() => setYearly(false)}
+            >
+              Monthly
+            </button>
+            <button
+              className={`pp-toggle-btn ${yearly ? 'active' : ''}`}
+              onClick={() => setYearly(true)}
+            >
+              Yearly
+            </button>
+            <div className="pp-toggle-slider" />
+          </div>
+          {yearly && <span className="pp-save-pill">Save 21%</span>}
         </div>
       </div>
 
       <div className="pp-grid">
         {/* Free */}
         <div className="pp-card">
-          <div className="pp-card-top">
-            <span className="pp-plan-name">Free</span>
-            <p className="pp-plan-desc">Get started — no credit card needed</p>
-            <div className="pp-price">
-              <span className="pp-price-amount">$0</span>
+          <div className="pp-card-head">
+            <span className="pp-plan-label">Free</span>
+            <div className="pp-price-row">
+              <span className="pp-price-dollar">$</span>
+              <span className="pp-price-num">0</span>
             </div>
+            <p className="pp-plan-tagline">No credit card required</p>
           </div>
-          <ul className="pp-features">
-            <li>5 arbitrage opportunities</li>
-            <li>15-minute delayed prices</li>
-            <li>AI-powered match verification</li>
-            <li>Community match voting</li>
-          </ul>
-          <a href="/signup" className="pp-btn pp-btn-secondary">Start free</a>
+          <div className="pp-card-body">
+            <ul className="pp-features">
+              <Feature>5 arbitrage opportunities</Feature>
+              <Feature>15-minute delayed prices</Feature>
+              <Feature>AI match verification</Feature>
+              <Feature>Community match voting</Feature>
+            </ul>
+          </div>
+          <div className="pp-card-foot">
+            <a href="/signup" className="pp-cta pp-cta-ghost">
+              Get started {ARROW}
+            </a>
+          </div>
         </div>
 
         {/* Pro */}
-        <div className="pp-card pp-card-featured">
-          <div className="pp-popular-badge">Most Popular</div>
-          <div className="pp-card-top">
-            <span className="pp-plan-name">Pro</span>
-            <p className="pp-plan-desc">Full scanner + live whale feeds</p>
-            <div className="pp-price">
-              <span className="pp-price-amount">${yearly ? 15 : 19}</span>
-              <span className="pp-price-period">/month</span>
+        <div className="pp-card pp-card-pro">
+          <div className="pp-glow" />
+          <div className="pp-card-head">
+            <div className="pp-pro-label-row">
+              <span className="pp-plan-label">Pro</span>
+              <span className="pp-popular">Most popular</span>
             </div>
-            {yearly && (
-              <span className="pp-billed-note">$180/year — save $48</span>
-            )}
+            <div className="pp-price-row">
+              <span className="pp-price-dollar">$</span>
+              <span className="pp-price-num">{yearly ? 15 : 19}</span>
+              <span className="pp-price-unit">/mo</span>
+            </div>
+            <p className="pp-plan-tagline">
+              {yearly ? 'Billed $180/year' : 'Billed monthly'}
+            </p>
           </div>
-          <ul className="pp-features pp-features-pro">
-            <li>Every arbitrage opportunity</li>
-            <li>15-second live prices</li>
-            <li>Full access to 3,800+ markets</li>
-            <li>Whale trade feed</li>
-            <li>Watchlists with alerts</li>
-            <li>Discord notifications</li>
-          </ul>
-          <button className="pp-btn pp-btn-primary" onClick={() => handleCheckout(yearly ? 'yearly' : 'monthly')}>
-            Go Pro
-          </button>
+          <div className="pp-card-body">
+            <ul className="pp-features">
+              <Feature pro>Every arbitrage opportunity</Feature>
+              <Feature pro>15-second live prices</Feature>
+              <Feature pro>3,800+ markets scanned</Feature>
+              <Feature pro>Whale trade feed</Feature>
+              <Feature pro>Watchlists with alerts</Feature>
+              <Feature pro>Discord notifications</Feature>
+            </ul>
+          </div>
+          <div className="pp-card-foot">
+            <button
+              className="pp-cta pp-cta-primary"
+              onClick={() => handleCheckout(yearly ? 'yearly' : 'monthly')}
+            >
+              Go Pro {ARROW}
+            </button>
+          </div>
         </div>
 
         {/* Sports */}
-        <div className="pp-card pp-card-muted">
-          <div className="pp-card-top">
-            <div className="pp-name-row">
-              <span className="pp-plan-name">Sports</span>
-              <span className="pp-coming-badge">Coming Soon</span>
+        <div className="pp-card pp-card-dim">
+          <div className="pp-card-head">
+            <div className="pp-pro-label-row">
+              <span className="pp-plan-label">Sports</span>
+              <span className="pp-soon">{LOCK} Coming soon</span>
             </div>
-            <p className="pp-plan-desc">Sportsbook arbitrage + everything in Pro</p>
-            <div className="pp-price">
-              <span className="pp-price-amount">${yearly ? 25 : 30}</span>
-              <span className="pp-price-period">/month</span>
+            <div className="pp-price-row">
+              <span className="pp-price-dollar">$</span>
+              <span className="pp-price-num">{yearly ? 25 : 30}</span>
+              <span className="pp-price-unit">/mo</span>
             </div>
-            {yearly && (
-              <span className="pp-billed-note">$300/year — save $60</span>
-            )}
+            <p className="pp-plan-tagline">
+              {yearly ? 'Billed $300/year' : 'Everything in Pro, plus sportsbooks'}
+            </p>
           </div>
-          <ul className="pp-features">
-            <li>Everything in Pro</li>
-            <li>FanDuel sportsbook arbs</li>
-            <li>DraftKings integration</li>
-            <li>BetMGM integration</li>
-            <li>Caesars Sportsbook integration</li>
-            <li>Sports arb scanner</li>
-          </ul>
-          <button className="pp-btn pp-btn-secondary" disabled>Coming Soon</button>
+          <div className="pp-card-body">
+            <ul className="pp-features">
+              <Feature>Everything in Pro</Feature>
+              <Feature>FanDuel sportsbook arbs</Feature>
+              <Feature>DraftKings integration</Feature>
+              <Feature>BetMGM integration</Feature>
+              <Feature>Caesars integration</Feature>
+              <Feature>Dedicated sports scanner</Feature>
+            </ul>
+          </div>
+          <div className="pp-card-foot">
+            <button className="pp-cta pp-cta-ghost" disabled>
+              Notify me {ARROW}
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="pp-trust">
-        <span>Cancel anytime</span>
-        <span className="pp-trust-dot" />
-        <span>No hidden fees</span>
-        <span className="pp-trust-dot" />
-        <span>Secure checkout via Stripe</span>
+      <div className="pp-trust-strip">
+        <TrustItem icon="shield">Secure checkout via Stripe</TrustItem>
+        <TrustItem icon="x">Cancel anytime, no questions</TrustItem>
+        <TrustItem icon="zap">Upgrade or downgrade instantly</TrustItem>
       </div>
 
-      <div className="pp-faq">
-        <h2 className="pp-faq-title">Frequently asked questions</h2>
-        <FAQ q="What is prediction market arbitrage?" a="Prediction markets let you buy YES or NO shares on an outcome, priced between $0 and $1. When the same event is on both Polymarket and Kalshi at different prices, you can buy YES on one and NO on the other. If your total cost is under $1.00, you're guaranteed a profit — one of your positions always pays out $1." />
-        <FAQ q="How does Polshi find arbitrage?" a="We scan Polymarket and Kalshi in real time, match equivalent markets using AI-powered text analysis, and calculate the price spread. When we find a mismatch, we show you exactly where to buy on each platform." />
-        <FAQ q="How often are prices updated?" a="Pro subscribers get 15-second updates sourced directly from each platform's API. Free tier data refreshes every 15 minutes." />
-        <FAQ q="What is whale tracking?" a="Whale tracking monitors large trades across both platforms in real time. Each trade gets a whale score based on its size relative to typical activity. Repeat whales are flagged so you can follow smart money." />
-        <FAQ q="Is this financial advice?" a="No. Polshi is an informational tool that displays publicly available price data. Nothing on this site constitutes financial, investment, or trading advice." />
-        <FAQ q="How do I cancel?" a="You can cancel anytime from your account settings. Your Pro access continues until the end of your current billing period." />
+      <div className="pp-faq-section">
+        <h2 className="pp-faq-heading">Questions &amp; answers</h2>
+        <div className="pp-faq-grid">
+          <FAQ q="What is prediction market arbitrage?" a="Prediction markets let you buy YES or NO shares priced $0–$1. When the same event is priced differently on Polymarket and Kalshi, buying YES on one and NO on the other for under $1 total locks in a guaranteed profit." />
+          <FAQ q="How does Polshi find arbs?" a="We scan both platforms every 30 seconds, match equivalent markets with AI-powered text analysis, and calculate the price spread. When we find a mismatch, we show you exactly where to buy on each platform." />
+          <FAQ q="How fast are the prices?" a="Pro gets 15-second updates from each platform's API. Free refreshes every 15 minutes." />
+          <FAQ q="What is whale tracking?" a="We monitor large trades in real time and score each by size relative to normal activity. Repeat whales are flagged so you can follow smart money." />
+          <FAQ q="Is this financial advice?" a="No. Polshi displays publicly available price data. Nothing on this site is financial, investment, or trading advice." />
+          <FAQ q="How do I cancel?" a="Account settings → cancel. Your access continues through the end of your billing period." />
+        </div>
       </div>
-    </>
+    </div>
+  )
+}
+
+function Feature({ children, pro }) {
+  return (
+    <li className={pro ? 'pro' : ''}>
+      <span className="pp-check">{CHECK}</span>
+      {children}
+    </li>
+  )
+}
+
+function TrustItem({ children, icon }) {
+  const icons = {
+    shield: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1.5L2.5 4v4c0 3.5 2.5 5.5 5.5 6.5 3-1 5.5-3 5.5-6.5V4L8 1.5z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" /></svg>,
+    x: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.2" /><path d="M10 6L6 10M6 6l4 4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" /></svg>,
+    zap: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8.5 1.5L3.5 9h4l-1 5.5 6-8h-4.5l.5-5z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" /></svg>,
+  }
+  return (
+    <div className="pp-trust-item">
+      <span className="pp-trust-icon">{icons[icon]}</span>
+      {children}
+    </div>
   )
 }
 
@@ -141,10 +211,14 @@ function FAQ({ q, a }) {
   return (
     <div className={`pp-faq-item ${open ? 'open' : ''}`}>
       <button className="pp-faq-q" onClick={() => setOpen(!open)}>
-        {q}
-        <span className="pp-faq-icon">{open ? '−' : '+'}</span>
+        <span>{q}</span>
+        <svg className="pp-faq-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
       </button>
-      {open && <p className="pp-faq-a">{a}</p>}
+      <div className="pp-faq-a">
+        <p>{a}</p>
+      </div>
     </div>
   )
 }

@@ -158,6 +158,37 @@ const KNOWN_ENTITIES = [
   { pattern: /\b(Taiwan)\b/i, canonical: 'Taiwan' },
   { pattern: /\b(Gaza)\b/i, canonical: 'Gaza' },
   { pattern: /\b(Palestine)\b/i, canonical: 'Palestine' },
+  { pattern: /\b(North Korea|DPRK)\b/i, canonical: 'North Korea' },
+  { pattern: /\b(South Korea)\b/i, canonical: 'South Korea' },
+  { pattern: /\b(Syria)\b/i, canonical: 'Syria' },
+  { pattern: /\b(Lebanon)\b/i, canonical: 'Lebanon' },
+  { pattern: /\b(Canada)\b/i, canonical: 'Canada' },
+  { pattern: /\b(Mexico)\b/i, canonical: 'Mexico' },
+  { pattern: /\b(Japan)\b/i, canonical: 'Japan' },
+  { pattern: /\b(India)\b/i, canonical: 'India' },
+  { pattern: /\b(S&P\s*500|SPX|SPY)\b/i, canonical: 'S&P 500' },
+  { pattern: /\b(Dow\s*Jones|DJIA|DJI)\b/i, canonical: 'Dow Jones' },
+  { pattern: /\b(Nasdaq|QQQ)\b/i, canonical: 'Nasdaq' },
+  { pattern: /\b(Cardano|ADA)\b/i, canonical: 'Cardano' },
+  { pattern: /\b(Litecoin|LTC)\b/i, canonical: 'Litecoin' },
+  { pattern: /\b(Chainlink|LINK)\b/i, canonical: 'Chainlink' },
+  { pattern: /\b(Polkadot|DOT)\b/i, canonical: 'Polkadot' },
+  { pattern: /\b(Avalanche|AVAX)\b/i, canonical: 'Avalanche' },
+  { pattern: /\b(Pepe|PEPE)\b/i, canonical: 'Pepe' },
+  { pattern: /\b(Sui|SUI)\b/i, canonical: 'Sui' },
+  { pattern: /\b(Anthropic)\b/i, canonical: 'Anthropic' },
+  { pattern: /\b(ByteDance)\b/i, canonical: 'ByteDance' },
+  { pattern: /\b(Stripe)\b/i, canonical: 'Stripe' },
+  { pattern: /\b(Reddit|RDDT)\b/i, canonical: 'Reddit' },
+  { pattern: /\b(Uber)\b/i, canonical: 'Uber' },
+  { pattern: /\b(Palantir|PLTR)\b/i, canonical: 'Palantir' },
+  { pattern: /\b(CPI)\b/i, canonical: 'CPI' },
+  { pattern: /\b(WHO)\b/i, canonical: 'WHO' },
+  { pattern: /\b(UN|United Nations)\b/i, canonical: 'UN' },
+  { pattern: /\b(Coinbase|COIN)\b/i, canonical: 'Coinbase' },
+  { pattern: /\b(Robinhood|HOOD)\b/i, canonical: 'Robinhood' },
+  { pattern: /\b(SEC)\b/i, canonical: 'SEC' },
+  { pattern: /\b(OPEC)\b/i, canonical: 'OPEC' },
 ]
 
 function extractEntities(text) {
@@ -492,17 +523,31 @@ export function buildFingerprint(market) {
   const desc = market.description || ''
   const combined = `${q} ${desc}`
 
-  const allEntities = extractEntities(q)
-  const primaryEntity = extractPrimaryEntity(q, allEntities)
-  const topic = detectTopic(q)
+  const qEntities = extractEntities(q)
+  const descEntities = desc ? extractEntities(desc) : []
+  const seen = new Set(qEntities.map(e => e.toLowerCase()))
+  const allEntities = [...qEntities]
+  for (const e of descEntities) {
+    if (!seen.has(e.toLowerCase())) {
+      seen.add(e.toLowerCase())
+      allEntities.push(e)
+    }
+  }
+
+  const primaryEntity = extractPrimaryEntity(q, qEntities)
+  const topic = detectTopic(combined)
   const action = detectAction(q)
   const scope = detectScope(q)
   const dateBucket = buildDateBucket(market.endDate)
-  const yearInText = extractYearFromText(q)
-  const monthInText = extractMonthFromText(q)
-  const numericTarget = extractNumericTarget(q)
+  const yearInText = extractYearFromText(combined)
+  const monthInText = extractMonthFromText(combined)
+  const numericTarget = extractNumericTarget(combined)
   const polarity = detectPolarity(q)
-  const keywords = extractKeywords(q)
+  const qKeywords = extractKeywords(q)
+  const descKeywords = desc ? extractKeywords(desc).slice(0, 10) : []
+  const kwSet = new Set(qKeywords)
+  for (const kw of descKeywords) kwSet.add(kw)
+  const keywords = [...kwSet]
 
   return {
     entity: primaryEntity,
@@ -516,7 +561,6 @@ export function buildFingerprint(market) {
     numericTarget,
     polarity,
     keywords,
-    // Keep original for debugging
     _question: q,
     _source: market.source || null,
   }
