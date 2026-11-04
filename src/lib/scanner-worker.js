@@ -163,7 +163,7 @@ async function runCycle() {
       console.log(`[scanner-worker] Pre-filter sample: ${markets[0]?.question?.slice(0, 60)} edge=${markets[0]?.edge} conf=${markets[0]?.matchConfidence}`)
     }
 
-    // ── AI Verify (PRODUCTION — regex heuristics) ────
+    // ── AI Verify (supplementary — adds aiConfidence/aiReason) ──
     const tVerify = Date.now()
     const aiResults = await aiVerifyMatches(markets).catch((err) => {
       console.error('[scanner-worker] AI verify error:', err.message)
@@ -171,56 +171,26 @@ async function runCycle() {
     })
     timings.verifyMs = Date.now() - tVerify
 
-    // ── Post-process (PRODUCTION) ────────────────────
+    // ── Post-process ────────────────────────────────
     const tPost = Date.now()
 
     if (aiResults) {
       markets = markets.map((m, i) => {
         const ai = aiResults.get(i)
         if (!ai) return m
-
-        const aiConfidence = ai.aiConfidence
-        const aiVerified = aiConfidence >= 90
-        const aiPossible = aiConfidence >= 70 && aiConfidence < 90
-
-        const verified = m.verified && aiVerified
-        const isArbSafe = verified && m.matchConfidence >= 85
-
-        const edge = m.edge
-        const totalCost = edge != null ? 100 - edge : null
-        const buyPlatform = edge > 0
-          ? (m.polymarket <= m.kalshi ? 'polymarket' : 'kalshi')
-          : null
-
         return {
           ...m,
-          verified,
-          isArbSafe,
-          edge,
-          difference: edge,
-          totalCost,
-          buyPlatform,
-          aiConfidence,
+          aiConfidence: ai.aiConfidence,
           aiReason: ai.aiReason,
-          aiPossible: !verified && aiPossible && m.matchConfidence >= 80,
         }
-      })
-
-      markets.sort((a, b) => {
-        if (a.verified && !b.verified) return -1
-        if (!a.verified && b.verified) return 1
-        if (a.aiPossible && !b.aiPossible) return -1
-        if (!a.aiPossible && b.aiPossible) return 1
-        const aEdge = a.edge ?? -1
-        const bEdge = b.edge ?? -1
-        return bEdge - aEdge
       })
     }
 
+    // Keep all matched markets with any positive edge
     const preEdgeFilter = markets.length
     markets = markets.filter(m => m.edge != null && m.edge > 0)
     const postEdgeFilter = markets.length
-    console.log(`[scanner-worker] Filter: pre=${preFilterCount} → postVerify=${preEdgeFilter} → edge>0=${postEdgeFilter}`)
+    console.log(`[scanner-worker] Filter: pre=${preFilterCount} → matched=${preEdgeFilter} → edge>0=${postEdgeFilter}`)
 
     markets = markets.map(m => {
       const { debug, ...rest } = m
@@ -234,7 +204,8 @@ async function runCycle() {
     cacheSet(CACHE_KEY, markets, CACHE_TTL)
 
     // ── Top Arb ─────────────────────────────────────
-    const highConfArbs = markets.filter(m => m.edge > 0 && (m.aiConfidence ?? 0) >= 70)
+    const highConfArbs = markets.filter(m => m.edge > 0 && m.matchConfidence >= 40)
+    highConfArbs.sort((a, b) => b.edge - a.edge)
     const bestArb = highConfArbs[0] || null
     if (bestArb) {
       cacheSet(TOP_ARB_KEY, {

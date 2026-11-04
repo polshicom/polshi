@@ -1,16 +1,17 @@
 /**
- * Fingerprint-based market matcher.
+ * Category-first market matcher.
  *
- * Replaces the old dice-coefficient / keyword-overlap approach with
- * structured fingerprint comparison. Each market gets a fingerprint
- * (entity, topic, action, date, numeric target, polarity, keywords)
- * and matches are scored by field-level compatibility checks.
+ * Strategy: categorize → match within categories → compute arb.
+ * This finds ALL matching markets first, then calculates edge after.
  *
- * Priority: correctness over recall. False matches are worse than
- * missed matches for an arbitrage scanner.
+ * 1. Categorize every market on both platforms
+ * 2. Within each category, compare Poly vs Kalshi using text similarity
+ * 3. Score matches by keyword overlap + entity overlap
+ * 4. Greedy 1:1 assignment (best match wins)
+ * 5. Build result with edge/arb calculations
  */
 
-import { buildFingerprint, categorize } from './fingerprint.js'
+import { categorize } from './fingerprint.js'
 
 // ── Helpers ──────────────────────────────────────────
 
@@ -24,398 +25,97 @@ function formatVolume(vol) {
   return `$${vol.toFixed(0)}`
 }
 
-// ── Date Compatibility ───────────────────────────────
-// Different market types get different allowed date windows.
+// ── Text Normalization ──────────────────────────────
 
-const DATE_WINDOWS = {
-  sports_game:         1,
-  sports_over_under:   1,
-  sports_series:       7,
-  sports_championship: 31,
-  sports_award:        31,
-  sports_relegation:   31,
-  sports_transfer:     31,
-  election:            14,
-  nomination:          14,
-  vp_nomination:       14,
-  primary:             14,
-  impeachment:         31,
-  resignation:         31,
-  fed_rates:           31,
-  inflation:           31,
-  macro:               31,
-  crypto_price:        14,
-  price_target:        14,
-  ipo:                 31,
-  acquisition:         31,
-  bankruptcy:          31,
-  geopolitical:        31,
-  space:               31,
-  tech:                31,
-  climate:             31,
-  entertainment:       31,
-  generic_unknown:     14,
-}
-
-function datesCompatible(fpA, fpB) {
-  // If both have date buckets, compare them
-  if (fpA.dateBucket && fpB.dateBucket) {
-    const dA = new Date(fpA.dateBucket)
-    const dB = new Date(fpB.dateBucket)
-    if (isNaN(dA.getTime()) || isNaN(dB.getTime())) return { compatible: false, reason: 'Invalid dates' }
-
-    const diffDays = Math.abs(dA.getTime() - dB.getTime()) / (1000 * 60 * 60 * 24)
-    const topic = fpA.topic !== 'generic_unknown' ? fpA.topic : fpB.topic
-    const window = DATE_WINDOWS[topic] || 14
-    if (diffDays <= window) {
-      return { compatible: true, reason: `Dates within ${window}d window (${Math.round(diffDays)}d apart)` }
-    }
-    return { compatible: false, reason: `Dates too far apart (${Math.round(diffDays)}d > ${window}d window)` }
-  }
-
-  // If neither has a date bucket, check for year in text
-  if (!fpA.dateBucket && !fpB.dateBucket) {
-    if (fpA.yearInText && fpB.yearInText) {
-      if (fpA.yearInText === fpB.yearInText) {
-        return { compatible: true, reason: `Same year in text (${fpA.yearInText})` }
-      }
-      return { compatible: false, reason: `Different years (${fpA.yearInText} vs ${fpB.yearInText})` }
-    }
-    // No date info at all — allow through (penalized elsewhere, not hard rejected)
-    return { compatible: true, reason: 'No date information — allowed' }
-  }
-
-  // One has date, other doesn't — check year in text of the one without
-  const withDate = fpA.dateBucket ? fpA : fpB
-  const without = fpA.dateBucket ? fpB : fpA
-  const dateYear = withDate.dateBucket.substring(0, 4)
-
-  if (without.yearInText) {
-    if (without.yearInText === dateYear) {
-      return { compatible: true, reason: `Year matches (${dateYear})` }
-    }
-    return { compatible: false, reason: `Year mismatch (${dateYear} vs ${without.yearInText})` }
-  }
-
-  // One has a date, the other has nothing — allow but with note
-  return { compatible: true, reason: 'One market missing date — allowed' }
-}
-
-// ── Entity Compatibility ─────────────────────────────
-
-function normalizeEntity(e) {
-  if (!e) return null
-  return e.toLowerCase().replace(/[^\w\s]/g, '').trim()
-}
-
-function entitySimilarity(a, b) {
-  const na = normalizeEntity(a)
-  const nb = normalizeEntity(b)
-  if (!na || !nb) return 0
-  if (na === nb) return 1.0
-
-  // Check containment (e.g., "Trump" matches "Donald Trump")
-  if (na.includes(nb) || nb.includes(na)) return 0.9
-
-  // Check surname match (last word)
-  const aParts = na.split(/\s+/)
-  const bParts = nb.split(/\s+/)
-  const aLast = aParts[aParts.length - 1]
-  const bLast = bParts[bParts.length - 1]
-  if (aLast.length >= 4 && aLast === bLast) return 0.85
-
-  return 0
-}
-
-function entityCompatible(fpA, fpB) {
-  // Both have primary entities — check direct match
-  if (fpA.entity && fpB.entity) {
-    const sim = entitySimilarity(fpA.entity, fpB.entity)
-    if (sim >= 0.8) {
-      return { compatible: true, reason: `Entity match: "${fpA.entity}" ~ "${fpB.entity}" (${sim})`, strength: 'strong' }
-    }
-  }
-
-  // Check allEntities overlap (includes dynamically extracted proper nouns)
-  if (fpA.allEntities.length > 0 && fpB.allEntities.length > 0) {
-    const setA = new Set(fpA.allEntities.map(e => normalizeEntity(e)))
-    const setB = new Set(fpB.allEntities.map(e => normalizeEntity(e)))
-    let overlap = 0
-    const sharedEntities = []
-    for (const e of setA) {
-      if (setB.has(e)) { overlap++; sharedEntities.push(e) }
-      for (const f of setB) {
-        if (e && f && e !== f) {
-          if (e.includes(f) || f.includes(e)) { overlap++; sharedEntities.push(`${e}~${f}`) }
-          const eParts = e.split(/\s+/)
-          const fParts = f.split(/\s+/)
-          const eLast = eParts[eParts.length - 1]
-          const fLast = fParts[fParts.length - 1]
-          if (eLast && fLast && eLast.length >= 4 && eLast === fLast) {
-            overlap++; sharedEntities.push(`surname:${eLast}`)
-          }
-          if (eParts.length >= 2 && fParts.length >= 2) {
-            const eFirst = eParts[0]
-            const fFirst = fParts[0]
-            if (eFirst.length >= 3 && eFirst === fFirst && eLast.length >= 3 && fLast.length >= 3) {
-              overlap++; sharedEntities.push(`firstname:${eFirst}`)
-            }
-          }
-        }
-      }
-    }
-    if (overlap > 0) {
-      return { compatible: true, reason: `Entity overlap (${sharedEntities.slice(0, 3).join(', ')})`, strength: overlap >= 2 ? 'strong' : 'weak' }
-    }
-    // Entities exist on both sides but don't overlap — reject
-    return { compatible: false, reason: `No entity overlap: [${fpA.allEntities.slice(0, 3).join(', ')}] vs [${fpB.allEntities.slice(0, 3).join(', ')}]` }
-  }
-
-  // If neither has entities — allow for macro topics or same specific topic
-  const macroTopics = new Set(['fed_rates', 'inflation', 'macro', 'geopolitical', 'climate'])
-  if (fpA.allEntities.length === 0 && fpB.allEntities.length === 0) {
-    if (macroTopics.has(fpA.topic) && macroTopics.has(fpB.topic)) {
-      return { compatible: true, reason: 'No entities but matching macro topic', strength: 'weak' }
-    }
-    if (fpA.topic === fpB.topic && fpA.topic !== 'generic_unknown') {
-      return { compatible: true, reason: 'No entities but same specific topic', strength: 'weak' }
-    }
-    return { compatible: false, reason: 'No entities and no clear topic match' }
-  }
-
-  // One has entities, the other doesn't — soft reject (not hard)
-  return { compatible: false, reason: 'One market missing entities' }
-}
-
-// ── Topic Compatibility ──────────────────────────────
-
-const COMPATIBLE_TOPIC_PAIRS = new Set([
-  'crypto_price|price_target',
-  'price_target|crypto_price',
-  'election|primary',
-  'primary|election',
-  'election|nomination',
-  'nomination|election',
-  'election|geopolitical',
-  'geopolitical|election',
-  'entertainment|election',
-  'election|entertainment',
+const STOPWORDS = new Set([
+  'a', 'an', 'the', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
+  'will', 'would', 'could', 'should', 'may', 'might', 'can', 'do', 'does',
+  'did', 'has', 'have', 'had', 'in', 'on', 'at', 'to', 'for', 'of', 'with',
+  'by', 'from', 'or', 'and', 'not', 'no', 'if', 'but', 'so', 'as', 'it',
+  'its', 'this', 'that', 'than', 'then', 'what', 'which', 'who', 'whom',
+  'how', 'when', 'where', 'why', 'all', 'each', 'any', 'both', 'few',
+  'more', 'most', 'other', 'some', 'such', 'only', 'very', 'just',
+  'before', 'after', 'between', 'during', 'about', 'into', 'through',
+  'above', 'below', 'up', 'down', 'out', 'off', 'over', 'under',
+  'there', 'here', 'they', 'them', 'their', 'we', 'our', 'you', 'your',
+  'he', 'she', 'his', 'her', 'my', 'me', 'i',
 ])
 
-function topicCompatible(fpA, fpB) {
-  if (fpA.topic === fpB.topic && fpA.topic !== 'generic_unknown') {
-    return { compatible: true, reason: `Same topic: ${fpA.topic}` }
-  }
-  const pair = `${fpA.topic}|${fpB.topic}`
-  if (COMPATIBLE_TOPIC_PAIRS.has(pair)) {
-    return { compatible: true, reason: `Compatible topics: ${fpA.topic} <> ${fpB.topic}` }
-  }
-  // If one or both are generic_unknown, allow through with penalty (don't hard reject)
-  if (fpA.topic === 'generic_unknown' || fpB.topic === 'generic_unknown') {
-    return { compatible: true, reason: `Topic unclear: "${fpA.topic}" / "${fpB.topic}"`, weak: true }
-  }
-  return { compatible: false, reason: `Incompatible topics: "${fpA.topic}" vs "${fpB.topic}"` }
+function normalizeText(text) {
+  return text
+    .toLowerCase()
+    .replace(/['']/g, '')
+    .replace(/[^\w\s]/g, ' ')
+    .split(/\s+/)
+    .filter(w => w.length >= 2 && !STOPWORDS.has(w))
 }
 
-// ── Mismatch Kill List ───────────────────────────────
-
-const CONFLICTING_ACTIONS = new Set([
-  'run_for|win',
-  'win|run_for',
-  'be_nominee|win',
-  'win|be_nominee',
-  'be_nominee|run_for',
-  'run_for|be_nominee',
-  'increase|decrease',
-  'decrease|increase',
-  'above|below',
-  'below|above',
-  'reach|below',
-  'below|reach',
-  'acquire|ipo',
-  'ipo|acquire',
-  'resign|impeach',
-  'impeach|resign',
-  'launch|land',
-  'land|launch',
-  'relegate|promote',
-  'promote|relegate',
-  'relegate|win',
-  'win|relegate',
-])
-
-function hasMismatchConflict(fpA, fpB) {
-  // Scope conflicts — tournament ≠ group ≠ knockout ≠ match ≠ division
-  if (fpA.scope && fpB.scope && fpA.scope !== fpB.scope) {
-    return { conflict: true, reason: `Scope conflict: ${fpA.scope} vs ${fpB.scope}` }
-  }
-  // If one has a sub-tournament scope and the other has no scope, reject too
-  // (a "group" market should not match a market with no qualifier)
-  const subScopes = new Set(['group', 'knockout', 'match', 'division'])
-  if ((subScopes.has(fpA.scope) && !fpB.scope) || (subScopes.has(fpB.scope) && !fpA.scope)) {
-    return { conflict: true, reason: `Scope conflict: ${fpA.scope || 'none'} vs ${fpB.scope || 'none'}` }
-  }
-
-  // Action conflicts
-  if (fpA.action !== 'unknown' && fpB.action !== 'unknown') {
-    const pair = `${fpA.action}|${fpB.action}`
-    if (CONFLICTING_ACTIONS.has(pair)) {
-      return { conflict: true, reason: `Action conflict: ${fpA.action} vs ${fpB.action}` }
-    }
-  }
-
-  // Polarity conflicts
-  if (fpA.polarity !== fpB.polarity) {
-    return { conflict: true, reason: `Polarity conflict: ${fpA.polarity} vs ${fpB.polarity}` }
-  }
-
-  // Numeric target conflicts — significant difference
-  if (fpA.numericTarget != null && fpB.numericTarget != null) {
-    const ratio = Math.min(fpA.numericTarget, fpB.numericTarget) /
-                  Math.max(fpA.numericTarget, fpB.numericTarget)
-    if (ratio < 0.5) {
-      return { conflict: true, reason: `Numeric target conflict: ${fpA.numericTarget} vs ${fpB.numericTarget} (ratio ${ratio.toFixed(2)})` }
-    }
-  }
-
-  // Month conflict — if both mention specific months and they differ
-  if (fpA.monthInText && fpB.monthInText && fpA.monthInText !== fpB.monthInText) {
-    // For sports and short-term events, different months = different event
-    const shortTermTopics = new Set(['sports_game', 'sports_series', 'fed_rates', 'crypto_price', 'price_target'])
-    if (shortTermTopics.has(fpA.topic) || shortTermTopics.has(fpB.topic)) {
-      return { conflict: true, reason: `Month conflict: ${fpA.monthInText} vs ${fpB.monthInText}` }
-    }
-  }
-
-  return { conflict: false, reason: null }
+function getKeywords(market) {
+  const q = market.question || ''
+  const desc = market.description || ''
+  const qWords = normalizeText(q)
+  const descWords = normalizeText(desc).slice(0, 8)
+  const set = new Set(qWords)
+  for (const w of descWords) set.add(w)
+  return set
 }
 
-// ── Keyword Overlap (supplementary signal) ───────────
+// ── Similarity Scoring ──────────────────────────────
 
-function keywordOverlapScore(fpA, fpB) {
-  if (fpA.keywords.length === 0 || fpB.keywords.length === 0) return 0
-  const setA = new Set(fpA.keywords)
-  const setB = new Set(fpB.keywords)
-  let overlap = 0
+function jaccardSimilarity(setA, setB) {
+  if (setA.size === 0 && setB.size === 0) return 0
+  let intersection = 0
   for (const w of setA) {
-    if (setB.has(w)) overlap++
+    if (setB.has(w)) intersection++
   }
-  const smaller = Math.min(setA.size, setB.size)
-  return smaller > 0 ? overlap / smaller : 0
+  const union = setA.size + setB.size - intersection
+  return union > 0 ? intersection / union : 0
 }
 
-// ── Candidate Scoring ────────────────────────────────
-
-const MATCH_THRESHOLD = 50
-
-function scoreCandidate(fpA, fpB) {
-  let score = 0
-  const breakdown = []
-
-  // 1. Entity match (+40 / -20)
-  const entity = entityCompatible(fpA, fpB)
-  if (entity.compatible) {
-    const entityPoints = entity.strength === 'strong' ? 40 : 25
-    score += entityPoints
-    breakdown.push(`+${entityPoints} entity: ${entity.reason}`)
-  } else {
-    if (fpA.allEntities.length > 0 && fpB.allEntities.length > 0) {
-      score -= 35
-      breakdown.push(`-35 entity: ${entity.reason}`)
-    } else {
-      score -= 20
-      breakdown.push(`-20 entity: ${entity.reason}`)
-    }
+function overlapCoefficient(setA, setB) {
+  if (setA.size === 0 || setB.size === 0) return 0
+  let intersection = 0
+  for (const w of setA) {
+    if (setB.has(w)) intersection++
   }
-
-  // 2. Topic match (+20 / -10)
-  const topic = topicCompatible(fpA, fpB)
-  if (topic.compatible) {
-    const topicPoints = topic.weak ? 5 : 20
-    score += topicPoints
-    breakdown.push(`+${topicPoints} topic: ${topic.reason}`)
-  } else {
-    score -= 25
-    breakdown.push(`-25 topic: ${topic.reason}`)
-  }
-
-  // 3. Action match (+10 / -5)
-  if (fpA.action !== 'unknown' && fpB.action !== 'unknown') {
-    if (fpA.action === fpB.action) {
-      score += 10
-      breakdown.push(`+10 action: ${fpA.action}`)
-    } else {
-      score -= 5
-      breakdown.push(`-5 action mismatch: ${fpA.action} vs ${fpB.action}`)
-    }
-  } else if (fpA.action === 'unknown' && fpB.action === 'unknown') {
-    score -= 0
-    breakdown.push('0 both actions unknown')
-  } else {
-    score -= 0
-    breakdown.push(`0 action unclear: ${fpA.action} / ${fpB.action}`)
-  }
-
-  // 4. Date compatibility (+10 / -5)
-  const date = datesCompatible(fpA, fpB)
-  if (date.compatible) {
-    score += 10
-    breakdown.push(`+10 date: ${date.reason}`)
-  } else {
-    score -= 5
-    breakdown.push(`-5 date: ${date.reason}`)
-  }
-
-  // 5. Numeric target match (+10)
-  if (fpA.numericTarget != null && fpB.numericTarget != null) {
-    const ratio = Math.min(fpA.numericTarget, fpB.numericTarget) /
-                  Math.max(fpA.numericTarget, fpB.numericTarget)
-    if (ratio >= 0.9) {
-      score += 10
-      breakdown.push(`+10 target match: ${fpA.numericTarget} ~ ${fpB.numericTarget}`)
-    } else if (ratio >= 0.5) {
-      score -= 5
-      breakdown.push(`-5 target close but different: ${fpA.numericTarget} vs ${fpB.numericTarget}`)
-    }
-    // ratio < 0.5 would already be caught by hasMismatchConflict
-  } else if ((fpA.numericTarget != null) !== (fpB.numericTarget != null)) {
-    // One has a target, other doesn't — penalize for price/crypto topics
-    const targetTopics = new Set(['crypto_price', 'price_target', 'inflation', 'fed_rates'])
-    if (targetTopics.has(fpA.topic) || targetTopics.has(fpB.topic)) {
-      score -= 10
-      breakdown.push('-10 one market has numeric target, other does not')
-    }
-  }
-
-  // 6. Mismatch kill check (-50)
-  const mismatch = hasMismatchConflict(fpA, fpB)
-  if (mismatch.conflict) {
-    return { score: -1, breakdown: [`REJECT conflict: ${mismatch.reason}`], rejected: true, rejectReason: mismatch.reason }
-  }
-
-  // 7. Keyword overlap bonus (supplementary, +5 to +15)
-  const kwScore = keywordOverlapScore(fpA, fpB)
-  if (kwScore >= 0.7) {
-    score += 15
-    breakdown.push(`+15 keyword overlap: ${(kwScore * 100).toFixed(0)}%`)
-  } else if (kwScore >= 0.5) {
-    score += 10
-    breakdown.push(`+10 keyword overlap: ${(kwScore * 100).toFixed(0)}%`)
-  } else if (kwScore >= 0.3) {
-    score += 5
-    breakdown.push(`+5 keyword overlap: ${(kwScore * 100).toFixed(0)}%`)
-  } else if (kwScore < 0.15) {
-    score -= 5
-    breakdown.push(`-5 low keyword overlap: ${(kwScore * 100).toFixed(0)}%`)
-  }
-
-  return { score, breakdown, rejected: false, rejectReason: null }
+  return intersection / Math.min(setA.size, setB.size)
 }
 
-// ── Sub-market Answer Gate ───────────────────────────
-// Kalshi multi-candidate markets use "Parent - CandidateName" format.
-// If a Kalshi question has this suffix, the Polymarket question must
-// mention that candidate, or we skip entirely.
+function extractYear(text) {
+  const m = text.match(/\b(20[2-3]\d)\b/)
+  return m ? m[1] : null
+}
+
+function extractMonth(text) {
+  const months = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12,
+    january: 1, february: 2, march: 3, april: 4, june: 6, july: 7, august: 8, september: 9, october: 10, november: 11, december: 12 }
+  const m = text.toLowerCase().match(/\b(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)\b/)
+  return m ? months[m[1]] : null
+}
+
+function extractNumericTarget(text) {
+  const dollar = text.match(/\$\s*([\d,.]+)\s*([KMBkmb])?/)
+  if (dollar) {
+    let val = parseFloat(dollar[1].replace(/,/g, ''))
+    const s = (dollar[2] || '').toUpperCase()
+    if (s === 'K') val *= 1_000
+    if (s === 'M') val *= 1_000_000
+    if (s === 'B') val *= 1_000_000_000
+    return val
+  }
+  const pct = text.match(/([\d.]+)\s*(%|percent)/i)
+  if (pct) return parseFloat(pct[1])
+  const bps = text.match(/(\d+)\s*(bps|basis\s+points)/i)
+  if (bps) return parseFloat(bps[1])
+  return null
+}
+
+function detectPolarity(text) {
+  if (/\bnot\b|\bwon't\b|\bwill\s+not\b|\bfail\s+to\b|\bnever\b/i.test(text)) return 'negative'
+  return 'positive'
+}
+
+// ── Kalshi Sub-market Gate ──────────────────────────
 
 function extractKalshiAnswer(question) {
   const dashIdx = question.lastIndexOf(' - ')
@@ -426,14 +126,144 @@ function extractKalshiAnswer(question) {
 function questionContainsAnswer(question, answer) {
   const qLower = question.toLowerCase()
   if (qLower.includes(answer)) return true
-  const answerWords = answer.split(/\s+/).filter(w => w.length >= 3)
-  if (answerWords.length === 0) return false
-  return answerWords.every(w => qLower.includes(w))
+  const words = answer.split(/\s+/).filter(w => w.length >= 3)
+  return words.length > 0 && words.every(w => qLower.includes(w))
+}
+
+// ── Pair Scoring ────────────────────────────────────
+// Scores how likely two markets are the same event.
+// Returns 0-100, higher = more likely same market.
+
+function scorePair(pm, km) {
+  const pmQ = pm.question || ''
+  const kmQ = km.question || ''
+
+  // Kalshi sub-market gate
+  const kAnswer = extractKalshiAnswer(kmQ)
+  if (kAnswer && !questionContainsAnswer(pmQ, kAnswer)) return { score: 0, reason: 'sub-market mismatch' }
+
+  const pmKeywords = getKeywords(pm)
+  const kmKeywords = getKeywords(km)
+
+  // Core text similarity
+  const jaccard = jaccardSimilarity(pmKeywords, kmKeywords)
+  const overlap = overlapCoefficient(pmKeywords, kmKeywords)
+  const textScore = (jaccard * 0.4 + overlap * 0.6) * 60
+
+  let bonus = 0
+  let penalty = 0
+  const reasons = []
+
+  // Year check
+  const pmYear = extractYear(pmQ)
+  const kmYear = extractYear(kmQ)
+  if (pmYear && kmYear) {
+    if (pmYear === kmYear) { bonus += 8; reasons.push('same year') }
+    else { penalty += 20; reasons.push('diff year') }
+  }
+
+  // Month check
+  const pmMonth = extractMonth(pmQ)
+  const kmMonth = extractMonth(kmQ)
+  if (pmMonth && kmMonth) {
+    if (pmMonth === kmMonth) { bonus += 5; reasons.push('same month') }
+    else { penalty += 10; reasons.push('diff month') }
+  }
+
+  // Numeric target check
+  const pmTarget = extractNumericTarget(pmQ)
+  const kmTarget = extractNumericTarget(kmQ)
+  if (pmTarget != null && kmTarget != null) {
+    const ratio = Math.min(pmTarget, kmTarget) / Math.max(pmTarget, kmTarget)
+    if (ratio >= 0.9) { bonus += 12; reasons.push('same target') }
+    else if (ratio < 0.5) { penalty += 15; reasons.push('diff target') }
+  }
+
+  // Polarity check
+  if (detectPolarity(pmQ) !== detectPolarity(kmQ)) {
+    penalty += 15
+    reasons.push('polarity mismatch')
+  }
+
+  // End date proximity bonus
+  if (pm.endDate && km.endDate) {
+    const pmDate = new Date(pm.endDate)
+    const kmDate = new Date(km.endDate)
+    if (!isNaN(pmDate) && !isNaN(kmDate)) {
+      const diffDays = Math.abs(pmDate - kmDate) / (1000 * 60 * 60 * 24)
+      if (diffDays <= 3) { bonus += 10; reasons.push('same end date') }
+      else if (diffDays <= 14) { bonus += 5; reasons.push('close end date') }
+      else if (diffDays > 60) { penalty += 8; reasons.push('far end dates') }
+    }
+  }
+
+  // Shared proper names bonus (beyond keyword overlap)
+  const pmNames = extractProperNames(pmQ)
+  const kmNames = extractProperNames(kmQ)
+  if (pmNames.size > 0 && kmNames.size > 0) {
+    let nameOverlap = 0
+    for (const n of pmNames) {
+      if (kmNames.has(n)) nameOverlap++
+      for (const kn of kmNames) {
+        if (n !== kn && (n.includes(kn) || kn.includes(n))) nameOverlap++
+      }
+    }
+    if (nameOverlap > 0) { bonus += 15; reasons.push(`${nameOverlap} shared names`) }
+  }
+
+  const finalScore = Math.max(0, Math.min(100, Math.round(textScore + bonus - penalty)))
+  return {
+    score: finalScore,
+    reason: `text=${(textScore).toFixed(0)} +${bonus} -${penalty} [${reasons.join(', ')}]`,
+    jaccard: Math.round(jaccard * 100),
+    overlap: Math.round(overlap * 100),
+  }
+}
+
+// ── Proper Name Extraction ──────────────────────────
+
+function extractProperNames(text) {
+  const names = new Set()
+  const skip = new Set([
+    'will', 'what', 'which', 'before', 'after', 'during', 'between',
+    'under', 'over', 'next', 'first', 'last', 'prime', 'minister',
+    'president', 'governor', 'chancellor', 'secretary', 'general',
+    'election', 'party', 'democratic', 'republican', 'house', 'senate',
+    'january', 'february', 'march', 'april', 'june', 'july', 'august',
+    'september', 'october', 'november', 'december', 'actor', 'film',
+    'championship', 'premier', 'league', 'series', 'cup', 'bowl',
+    'finals', 'conference', 'division', 'season', 'total', 'market',
+    'price', 'rate', 'level', 'much', 'new', 'united', 'states',
+    'national', 'federal', 'reserve', 'international', 'significant',
+  ])
+
+  // Multi-word capitalized
+  const multi = text.matchAll(/\b([A-Z][a-z]+(?:\s+(?:[A-Z]\.?\s*)?[A-Z][a-z]+)+)\b/g)
+  for (const m of multi) {
+    const name = m[1].trim().toLowerCase()
+    if (!skip.has(name)) names.add(name)
+  }
+
+  // Single caps 4+ chars
+  const singles = text.matchAll(/\b([A-Z][a-z]{3,})\b/g)
+  for (const m of singles) {
+    const w = m[1].toLowerCase()
+    if (!skip.has(w)) names.add(w)
+  }
+
+  // Tickers/acronyms
+  const tickers = text.matchAll(/\b([A-Z]{2,6})\b/g)
+  for (const m of tickers) {
+    const t = m[1].toLowerCase()
+    if (!skip.has(t) && t.length >= 3) names.add(t)
+  }
+
+  return names
 }
 
 // ── Build Match Entry ────────────────────────────────
 
-function buildMatch(pm, km, score, breakdown, fpPM, fpK) {
+function buildMatch(pm, km, score, reason) {
   const pmProb = pm.prob
   const kProb = km.prob
   const pmCents = probToCents(pmProb)
@@ -441,15 +271,13 @@ function buildMatch(pm, km, score, breakdown, fpPM, fpK) {
   const combinedVol = (pm.volume || 0) + (km.volume || 0)
   const edgeCents = Math.round(Math.abs(pmProb - kProb) * 100)
 
-  // Confidence based on score
   let confidence
-  if (score >= 95) confidence = 'High'
-  else if (score >= 85) confidence = 'Medium'
+  if (score >= 70) confidence = 'High'
+  else if (score >= 50) confidence = 'Medium'
   else confidence = 'Low'
 
-  // Verified only if score is high and edge is reasonable
-  const verified = score >= MATCH_THRESHOLD && edgeCents > 0
-  const isArbSafe = verified && score >= 85
+  const verified = score >= 45 && edgeCents > 0
+  const isArbSafe = verified && score >= 65
 
   let buyPlatform = null
   if (edgeCents > 0) {
@@ -468,7 +296,7 @@ function buildMatch(pm, km, score, breakdown, fpPM, fpK) {
     verified,
     isArbSafe,
     matchConfidence: score,
-    matchReason: breakdown.join(' | '),
+    matchReason: reason,
     confidence,
     matchScore: score / 100,
     volume: formatVolume(combinedVol),
@@ -478,7 +306,6 @@ function buildMatch(pm, km, score, breakdown, fpPM, fpK) {
     _kalshiQuestion: km.question,
     _polyDescription: pm.description || '',
     _kalshiDescription: km.description || '',
-    _fingerprints: { polymarket: fpPM, kalshi: fpK },
     updated: 'just now',
     debug: {
       poly_prob: pmProb,
@@ -493,88 +320,104 @@ function buildMatch(pm, km, score, breakdown, fpPM, fpK) {
 
 // ── Main Matching ────────────────────────────────────
 
+const MATCH_THRESHOLD = 30
+
 export function matchMarkets(polymarkets, kalshiMarkets) {
-  // Step 1: Build fingerprints for all markets
-  const polyFPs = polymarkets.map(m => buildFingerprint(m))
-  const kalshiFPs = kalshiMarkets.map(m => buildFingerprint(m))
+  // Step 1: Categorize all markets
+  const polyByCategory = {}
+  const kalshiByCategory = {}
 
-  // Step 2: For each Polymarket market, score all Kalshi candidates
-  const candidates = [] // { pmIdx, kIdx, score, breakdown, fpPM, fpK }
-  const rejections = [] // for debug logging
+  for (let i = 0; i < polymarkets.length; i++) {
+    const cat = categorize(polymarkets[i].question)
+    if (!polyByCategory[cat]) polyByCategory[cat] = []
+    polyByCategory[cat].push(i)
+  }
 
-  for (let pi = 0; pi < polymarkets.length; pi++) {
-    const fpPM = polyFPs[pi]
+  for (let i = 0; i < kalshiMarkets.length; i++) {
+    const cat = categorize(kalshiMarkets[i].question)
+    if (!kalshiByCategory[cat]) kalshiByCategory[cat] = []
+    kalshiByCategory[cat].push(i)
+  }
 
-    for (let ki = 0; ki < kalshiMarkets.length; ki++) {
-      const fpK = kalshiFPs[ki]
+  const allCategories = new Set([...Object.keys(polyByCategory), ...Object.keys(kalshiByCategory)])
+  console.log(`[matcher] Categories: ${[...allCategories].map(c => `${c}(${(polyByCategory[c]||[]).length}p/${(kalshiByCategory[c]||[]).length}k)`).join(', ')}`)
 
-      // Pre-gate: Kalshi sub-market answer must be mentioned in Polymarket question
-      const kAnswer = extractKalshiAnswer(kalshiMarkets[ki].question)
-      if (kAnswer && !questionContainsAnswer(polymarkets[pi].question, kAnswer)) continue
+  // Step 2: Within each category, score all cross-platform pairs
+  const candidates = []
 
-      // Score this candidate pair
-      const result = scoreCandidate(fpPM, fpK)
+  for (const cat of allCategories) {
+    const polyIndices = polyByCategory[cat] || []
+    const kalshiIndices = kalshiByCategory[cat] || []
+    if (polyIndices.length === 0 || kalshiIndices.length === 0) continue
 
-      if (result.rejected) {
-        rejections.push({
-          polymarket: polymarkets[pi].question,
-          kalshi: kalshiMarkets[ki].question,
-          reason: result.rejectReason,
-        })
-        continue
-      }
-
-      if (result.score >= MATCH_THRESHOLD) {
-        candidates.push({
-          pmIdx: pi,
-          kIdx: ki,
-          score: result.score,
-          breakdown: result.breakdown,
-          fpPM,
-          fpK,
-        })
+    for (const pi of polyIndices) {
+      for (const ki of kalshiIndices) {
+        const result = scorePair(polymarkets[pi], kalshiMarkets[ki])
+        if (result.score >= MATCH_THRESHOLD) {
+          candidates.push({ pmIdx: pi, kIdx: ki, score: result.score, reason: result.reason, cat })
+        }
       }
     }
   }
 
-  // Step 3: Sort candidates by score descending, then greedily assign
-  // Prevents the same Kalshi market from matching multiple Polymarket markets
-  candidates.sort((a, b) => b.score - a.score)
+  // Step 3: Also try cross-category matching for "Other" bucket
+  // Markets miscategorized on one platform might match correctly on the other
+  const otherPoly = polyByCategory['Other'] || []
+  const otherKalshi = kalshiByCategory['Other'] || []
+
+  // Match "Other" poly against ALL kalshi categories
+  for (const pi of otherPoly) {
+    for (let ki = 0; ki < kalshiMarkets.length; ki++) {
+      const result = scorePair(polymarkets[pi], kalshiMarkets[ki])
+      if (result.score >= MATCH_THRESHOLD + 10) {
+        candidates.push({ pmIdx: pi, kIdx: ki, score: result.score, reason: result.reason, cat: 'cross' })
+      }
+    }
+  }
+
+  // Match "Other" kalshi against ALL poly categories
+  for (const ki of otherKalshi) {
+    for (let pi = 0; pi < polymarkets.length; pi++) {
+      const result = scorePair(polymarkets[pi], kalshiMarkets[ki])
+      if (result.score >= MATCH_THRESHOLD + 10) {
+        candidates.push({ pmIdx: pi, kIdx: ki, score: result.score, reason: result.reason, cat: 'cross' })
+      }
+    }
+  }
+
+  // Deduplicate candidates (same pair might appear from category + cross matching)
+  const seen = new Set()
+  const dedupedCandidates = []
+  for (const c of candidates) {
+    const key = `${c.pmIdx}:${c.kIdx}`
+    if (!seen.has(key)) {
+      seen.add(key)
+      dedupedCandidates.push(c)
+    }
+  }
+
+  // Step 4: Greedy 1:1 assignment — best score wins
+  dedupedCandidates.sort((a, b) => b.score - a.score)
 
   const usedPoly = new Set()
   const usedKalshi = new Set()
   const matches = []
 
-  for (const c of candidates) {
+  for (const c of dedupedCandidates) {
     if (usedPoly.has(c.pmIdx) || usedKalshi.has(c.kIdx)) continue
-
     usedPoly.add(c.pmIdx)
     usedKalshi.add(c.kIdx)
-
-    const pm = polymarkets[c.pmIdx]
-    const km = kalshiMarkets[c.kIdx]
-
-    matches.push(buildMatch(pm, km, c.score, c.breakdown, c.fpPM, c.fpK))
+    matches.push(buildMatch(polymarkets[c.pmIdx], kalshiMarkets[c.kIdx], c.score, c.reason))
   }
 
-  // Sort: verified first (by edge desc), then unverified (by edge desc)
+  // Sort: verified first, then by edge desc
   matches.sort((a, b) => {
     if (a.verified && !b.verified) return -1
     if (!a.verified && b.verified) return 1
-    const aEdge = a.edge ?? -1
-    const bEdge = b.edge ?? -1
-    return bEdge - aEdge
+    return (b.edge ?? -1) - (a.edge ?? -1)
   })
 
-  // Log summary
-  console.log(`[matcher] ${polymarkets.length} poly × ${kalshiMarkets.length} kalshi → ${candidates.length} candidates → ${matches.length} matches (${matches.filter(m => m.verified).length} verified)`)
-  if (rejections.length > 0) {
-    // Log a few sample rejections for debugging
-    const samples = rejections.slice(0, 5)
-    for (const r of samples) {
-      console.log(`[matcher] REJECTED: "${r.polymarket.substring(0, 50)}" × "${r.kalshi.substring(0, 50)}" — ${r.reason}`)
-    }
-  }
+  console.log(`[matcher] ${polymarkets.length} poly × ${kalshiMarkets.length} kalshi → ${dedupedCandidates.length} candidates → ${matches.length} matches (${matches.filter(m => m.verified).length} verified)`)
 
   return matches
 }
