@@ -2294,6 +2294,16 @@ html[data-theme="dark"] .account-cancel-warning {
   margin-bottom: 20px;
 }
 
+/* ── App Pricing Page (override landing padding) ── */
+
+.app-pricing-page .pricing-section {
+  padding: 0 0 40px;
+}
+
+.app-pricing-page .faq-section {
+  padding: 40px 0 20px;
+}
+
 /* ── Refresh indicator ─────────────────────────── */
 
 .refresh-indicator {

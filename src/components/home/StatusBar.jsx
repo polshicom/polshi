@@ -60,8 +60,12 @@ export default function StatusBar() {
           <strong>{stats.scanned}</strong> markets scanned
         </span>
         <span className="status-bar-divider" />
+        <span className="status-bar-stat">
+          <strong>{stats.matchedCount || 0}</strong> matched
+        </span>
+        <span className="status-bar-divider" />
         <span className="status-bar-stat status-bar-arbs">
-          <strong>{stats.arbCount}</strong> arb opportunities
+          <strong>{stats.arbCount}</strong> arb{stats.arbCount !== 1 ? 's' : ''}
         </span>
         <span className="status-bar-divider" />
         <span className="status-bar-stat">

@@ -33,9 +33,9 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" data-theme="light" suppressHydrationWarning className={cn("font-sans", geist.variable)}>
+    <html lang="en" data-theme="dark" suppressHydrationWarning className={cn("font-sans", geist.variable)}>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: `try{var t=localStorage.getItem('polshi-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark')}catch(e){}` }} />
+        <script dangerouslySetInnerHTML={{ __html: `try{var t=localStorage.getItem('polshi-theme');if(t==='light')document.documentElement.setAttribute('data-theme','light')}catch(e){}` }} />
       </head>
       <body className={inter.className}>
         {children}

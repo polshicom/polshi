@@ -7,9 +7,9 @@ export const metadata = {
 
 export default function PricingPage() {
   return (
-    <>
+    <div className="app-pricing-page">
       <PricingSection />
       <FAQSection />
-    </>
+    </div>
   )
 }

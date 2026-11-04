@@ -240,7 +240,8 @@ async function runCycle() {
     cacheSet(CACHE_KEY, markets, CACHE_TTL)
 
     // ── Top Arb ─────────────────────────────────────
-    const bestArb = markets.find(m => m.isArbSafe && m.edge > 0)
+    const highConfArbs = markets.filter(m => m.edge > 0 && (m.aiConfidence ?? 0) >= 70)
+    const bestArb = highConfArbs[0] || null
     if (bestArb) {
       cacheSet(TOP_ARB_KEY, {
         question: bestArb.question,
@@ -262,23 +263,16 @@ async function runCycle() {
     }
 
     // ── Scanner stats ───────────────────────────────
-    const safeArbs = markets.filter(m => m.isArbSafe && m.edge > 0)
+    const visibleArbs = markets.filter(m => m.edge > 0)
     let totalEdge = 0
-    for (const m of safeArbs) {
+    for (const m of visibleArbs) {
       totalEdge += (m.edge / 100) * parseVolume(m.volume)
     }
     cacheSet(STATS_KEY, {
       scanned: exploreMarkets.length,
-      arbCount: safeArbs.length,
+      matchedCount: preFilterCount,
+      arbCount: visibleArbs.length,
       totalEdge,
-      _debug: {
-        preFilterCount,
-        preEdgeFilter,
-        postEdgeFilter,
-        preAiFilter,
-        postAiFilter,
-        sampleEdges: preFilterEdges.slice(0, 20),
-      },
     }, STATS_TTL)
 
     lastRunMs = Date.now()

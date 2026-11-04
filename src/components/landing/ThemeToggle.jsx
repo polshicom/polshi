@@ -3,10 +3,10 @@
 import { useState, useEffect } from 'react'
 
 export default function ThemeToggle() {
-  const [theme, setTheme] = useState('light')
+  const [theme, setTheme] = useState('dark')
 
   useEffect(() => {
-    const saved = localStorage.getItem('polshi-theme') || 'light'
+    const saved = localStorage.getItem('polshi-theme') || 'dark'
     setTheme(saved)
     document.documentElement.setAttribute('data-theme', saved)
   }, [])
