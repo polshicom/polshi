@@ -447,7 +447,7 @@ function buildMatch(pm, km, score, breakdown, fpPM, fpK) {
   else confidence = 'Low'
 
   // Verified only if score is high and edge is reasonable
-  const verified = score >= MATCH_THRESHOLD && edgeCents > 0 && edgeCents <= 25
+  const verified = score >= MATCH_THRESHOLD && edgeCents > 0
   const isArbSafe = verified && score >= 85
 
   let buyPlatform = null
