@@ -80,6 +80,7 @@ export default function Navbar({ user }) {
             <a href="/explore" className="glass-pill">Markets</a>
             <a href="/whales" className="glass-pill">Whales</a>
             <a href="/arbitrage" className="glass-pill">Scanner</a>
+            <a href="/faq" className="glass-pill">Learn</a>
             <a href="/pricing" className="glass-pill">Pricing</a>
             <a href="/hub" className="glass-pill">Hub</a>
           </nav>
@@ -123,6 +124,7 @@ export default function Navbar({ user }) {
           <a href="/arbitrage" className="mobile-nav-link">Scanner</a>
           <a href="/whales" className="mobile-nav-link">Whales</a>
           <a href="/hub" className="mobile-nav-link">Hub</a>
+          <a href="/faq" className="mobile-nav-link">Learn</a>
           <a href="/pricing" className="mobile-nav-link">Pricing</a>
           {!user && <a href="/login" className="mobile-nav-link">Log in</a>}
           {user && <a href="/settings" className="mobile-nav-link">Settings</a>}
