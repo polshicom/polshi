@@ -3,7 +3,7 @@ import { PolshiLogoFooter } from '../icons/PolshiLogo'
 export default function Footer() {
   return (
     <footer className="footer">
-      <div className="footer-content" style={{ gridTemplateColumns: '1.5fr repeat(4, 1fr)' }}>
+      <div className="footer-content">
         <div className="footer-logo">
           <PolshiLogoFooter />
           <p style={{ fontSize: 13, color: 'var(--color-text-quaternary)', marginTop: 8, lineHeight: 1.5 }}>

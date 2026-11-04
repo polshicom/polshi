@@ -1483,7 +1483,7 @@ html[data-theme="dark"] .dominance-secondary {
 
 .mt-skeleton {
   border-radius: 4px;
-  background: var(--color-bg-translucent);
+  background: var(--color-bg-tertiary);
   animation: skeleton-pulse 1.5s ease-in-out infinite;
 }
 
