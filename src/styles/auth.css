@@ -12,12 +12,11 @@
 .auth-card {
   width: 100%;
   max-width: 420px;
-  background: rgba(28, 28, 31, 0.6);
-  border: 0.5px solid var(--glass-border);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-primary);
   border-radius: var(--radius-16);
   padding: 40px 32px;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  box-shadow: var(--shadow-elevated);
 }
 
 .auth-logo {
@@ -195,9 +194,11 @@
   }
 }
 
-/* ===== LIGHT MODE OVERRIDES ===== */
+/* ===== DARK MODE OVERRIDES ===== */
 
-html[data-theme="light"] .auth-card {
-  background: rgba(255, 255, 255, 0.8);
-  border-color: var(--color-border-primary);
+html[data-theme="dark"] .auth-card {
+  background: rgba(28, 28, 31, 0.6);
+  border-color: var(--glass-border);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
