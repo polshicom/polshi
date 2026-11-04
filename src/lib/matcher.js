@@ -147,11 +147,19 @@ function entityCompatible(fpA, fpB) {
       for (const f of setB) {
         if (e && f && e !== f) {
           if (e.includes(f) || f.includes(e)) { overlap++; sharedEntities.push(`${e}~${f}`) }
-          // Surname match: last word of multi-word names
-          const eLast = e.split(/\s+/).pop()
-          const fLast = f.split(/\s+/).pop()
+          const eParts = e.split(/\s+/)
+          const fParts = f.split(/\s+/)
+          const eLast = eParts[eParts.length - 1]
+          const fLast = fParts[fParts.length - 1]
           if (eLast && fLast && eLast.length >= 4 && eLast === fLast) {
             overlap++; sharedEntities.push(`surname:${eLast}`)
+          }
+          if (eParts.length >= 2 && fParts.length >= 2) {
+            const eFirst = eParts[0]
+            const fFirst = fParts[0]
+            if (eFirst.length >= 3 && eFirst === fFirst && eLast.length >= 3 && fLast.length >= 3) {
+              overlap++; sharedEntities.push(`firstname:${eFirst}`)
+            }
           }
         }
       }
@@ -298,7 +306,7 @@ function keywordOverlapScore(fpA, fpB) {
 
 // ── Candidate Scoring ────────────────────────────────
 
-const MATCH_THRESHOLD = 65
+const MATCH_THRESHOLD = 50
 
 function scoreCandidate(fpA, fpB) {
   let score = 0
@@ -311,13 +319,13 @@ function scoreCandidate(fpA, fpB) {
     score += entityPoints
     breakdown.push(`+${entityPoints} entity: ${entity.reason}`)
   } else {
-    // Entity mismatch is a strong penalty but not always a hard reject
-    // Hard reject only if both sides have entities and they don't overlap at all
     if (fpA.allEntities.length > 0 && fpB.allEntities.length > 0) {
-      return { score: -1, breakdown: [`REJECT entity: ${entity.reason}`], rejected: true, rejectReason: entity.reason }
+      score -= 35
+      breakdown.push(`-35 entity: ${entity.reason}`)
+    } else {
+      score -= 20
+      breakdown.push(`-20 entity: ${entity.reason}`)
     }
-    score -= 20
-    breakdown.push(`-20 entity: ${entity.reason}`)
   }
 
   // 2. Topic match (+20 / -10)
@@ -384,15 +392,18 @@ function scoreCandidate(fpA, fpB) {
     return { score: -1, breakdown: [`REJECT conflict: ${mismatch.reason}`], rejected: true, rejectReason: mismatch.reason }
   }
 
-  // 7. Keyword overlap bonus (supplementary, +5 to +10)
+  // 7. Keyword overlap bonus (supplementary, +5 to +15)
   const kwScore = keywordOverlapScore(fpA, fpB)
-  if (kwScore >= 0.6) {
+  if (kwScore >= 0.7) {
+    score += 15
+    breakdown.push(`+15 keyword overlap: ${(kwScore * 100).toFixed(0)}%`)
+  } else if (kwScore >= 0.5) {
     score += 10
     breakdown.push(`+10 keyword overlap: ${(kwScore * 100).toFixed(0)}%`)
-  } else if (kwScore >= 0.4) {
+  } else if (kwScore >= 0.3) {
     score += 5
     breakdown.push(`+5 keyword overlap: ${(kwScore * 100).toFixed(0)}%`)
-  } else if (kwScore < 0.2) {
+  } else if (kwScore < 0.15) {
     score -= 5
     breakdown.push(`-5 low keyword overlap: ${(kwScore * 100).toFixed(0)}%`)
   }
@@ -436,7 +447,7 @@ function buildMatch(pm, km, score, breakdown, fpPM, fpK) {
   else confidence = 'Low'
 
   // Verified only if score is high and edge is reasonable
-  const verified = score >= MATCH_THRESHOLD && edgeCents > 0 && edgeCents <= 15
+  const verified = score >= MATCH_THRESHOLD && edgeCents > 0 && edgeCents <= 25
   const isArbSafe = verified && score >= 85
 
   let buyPlatform = null

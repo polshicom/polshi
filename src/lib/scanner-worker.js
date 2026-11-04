@@ -218,12 +218,12 @@ async function runCycle() {
     }
 
     const preEdgeFilter = markets.length
-    markets = markets.filter(m => m.edge != null && m.edge > 0 && m.edge <= 25)
+    markets = markets.filter(m => m.edge != null && m.edge > 0 && m.edge <= 35)
     const postEdgeFilter = markets.length
     const preAiFilter = markets.length
     markets = markets.filter(m => {
       if (m.aiConfidence == null) return true
-      return m.aiConfidence >= 50
+      return m.aiConfidence >= 35
     })
     const postAiFilter = markets.length
     console.log(`[scanner-worker] Filter: pre=${preFilterCount} → postVerify=${preEdgeFilter} → edge=${postEdgeFilter} → ai=${postAiFilter}`)
