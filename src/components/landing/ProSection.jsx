@@ -1,3 +1,4 @@
+import Link from 'next/link'
 export default function ProSection() {
   return (
     <section className="ai-section">
@@ -9,9 +10,9 @@ export default function ProSection() {
       <p className="ai-description">
         <strong>Polshi Pro</strong> is your one-stop shop for prediction markets: cross-platform arbitrage scanning, whale tracking to follow smart money, an explore page with 3,800+ markets, custom watchlists with Discord alerts, and 15-second data refresh. One good arb pays for the month.
       </p>
-      <a href="/signup" className="ai-learn-more">
+      <Link href="/signup" className="ai-learn-more">
         Start free trial <span>&rsaquo;</span>
-      </a>
+      </Link>
       <div className="agent-ui">
         <div className="agent-card">
           <div className="agent-search">|Search arb opportunities...</div>

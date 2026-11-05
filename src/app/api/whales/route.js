@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { cacheGetWithMeta } from '../../../lib/cache'
-import { ensureWorkerRunning, waitForFirstCycle, WHALE_TRADES_KEY } from '../../../lib/scanner-worker'
+import { ensureWorkerRunning, WHALE_TRADES_KEY } from '../../../lib/scanner-worker'
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url)
@@ -8,7 +8,6 @@ export async function GET(request) {
   const minSize = parseInt(searchParams.get('minSize') || '0', 10)
 
   ensureWorkerRunning()
-  await waitForFirstCycle()
 
   try {
     const cached = cacheGetWithMeta(WHALE_TRADES_KEY)

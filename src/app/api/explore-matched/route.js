@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { cacheGetWithMeta } from '../../../lib/cache'
-import { ensureWorkerRunning, waitForFirstCycle, CACHE_KEY } from '../../../lib/scanner-worker'
+import { ensureWorkerRunning, CACHE_KEY } from '../../../lib/scanner-worker'
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url)
@@ -10,7 +10,6 @@ export async function GET(request) {
   const limit = Math.min(parseInt(searchParams.get('limit') || '300', 10), 500)
 
   ensureWorkerRunning()
-  await waitForFirstCycle()
 
   try {
     const cached = cacheGetWithMeta(CACHE_KEY)

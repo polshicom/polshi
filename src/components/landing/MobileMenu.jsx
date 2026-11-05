@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 
 export default function MobileMenu({ isLoggedIn }) {
   const [open, setOpen] = useState(false)
@@ -20,13 +21,13 @@ export default function MobileMenu({ isLoggedIn }) {
       </button>
       {open && (
         <nav className="header-mobile-dropdown" onClick={() => setOpen(false)}>
-          <a href="/explore" className="header-mobile-link">Markets</a>
-          <a href="/arbitrage" className="header-mobile-link">Scanner</a>
-          <a href="/whales" className="header-mobile-link">Whales</a>
-          <a href="/hub" className="header-mobile-link">Hub</a>
-          <a href="/pricing" className="header-mobile-link">Pricing</a>
-          {!isLoggedIn && <a href="/login" className="header-mobile-link">Log in</a>}
-          {isLoggedIn && <a href="/settings" className="header-mobile-link">Settings</a>}
+          <Link href="/explore" className="header-mobile-link">Markets</Link>
+          <Link href="/arbitrage" className="header-mobile-link">Scanner</Link>
+          <Link href="/whales" className="header-mobile-link">Whales</Link>
+          <Link href="/hub" className="header-mobile-link">Hub</Link>
+          <Link href="/pricing" className="header-mobile-link">Pricing</Link>
+          {!isLoggedIn && <Link href="/login" className="header-mobile-link">Log in</Link>}
+          {isLoggedIn && <Link href="/settings" className="header-mobile-link">Settings</Link>}
         </nav>
       )}
     </>

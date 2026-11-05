@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { cacheGetWithMeta } from '../../../lib/cache'
-import { ensureWorkerRunning, waitForFirstCycle, EXPLORE_KEY } from '../../../lib/scanner-worker'
+import { ensureWorkerRunning, EXPLORE_KEY } from '../../../lib/scanner-worker'
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url)
@@ -12,7 +12,6 @@ export async function GET(request) {
 
   // Ensure background worker is running and has data
   ensureWorkerRunning()
-  await waitForFirstCycle()
 
   try {
     // Serve from worker cache — no external API calls

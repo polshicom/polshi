@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+
 import { useState, useEffect, useCallback } from 'react'
 
 const SIZE_OPTIONS = [
@@ -228,7 +230,7 @@ export default function WhaleTable({ isPro }) {
             <div className="upgrade-card">
               <h3>Whale Tracking is a Pro feature</h3>
               <p>Follow smart money in real time. See large trades, repeat whales, and market-moving activity across Polymarket and Kalshi.</p>
-              <a href="/signup" className="upgrade-btn">Start free trial</a>
+              <Link href="/signup" className="upgrade-btn">Start free trial</Link>
             </div>
           </div>
         )}

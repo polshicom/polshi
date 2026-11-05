@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+
 import { useState, useEffect } from 'react'
 
 function formatTimeAgo(isoStr) {
@@ -74,7 +76,7 @@ export default function TopArbYesterday() {
 
   return (
     <section className="best-opp-section">
-      <a href="/arbitrage" className="best-opp">
+      <Link href="/arbitrage" className="best-opp">
         <div className="best-opp-label">
           <span className="best-opp-dot" />
           Yesterday's Top Arb
@@ -114,7 +116,7 @@ export default function TopArbYesterday() {
           </span>
           {timeAgo && <span className="best-opp-updated">Updated {timeAgo}</span>}
         </div>
-      </a>
+      </Link>
     </section>
   )
 }

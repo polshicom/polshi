@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 
 export default function FAQPage() {
   return (
@@ -250,11 +251,11 @@ export default function FAQPage() {
       </section>
 
       <div className="faq-page-cta">
-        <a href="/arbitrage" className="faq-cta-btn">
+        <Link href="/arbitrage" className="faq-cta-btn">
           Open the scanner
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10m0 0L9 4m4 4L9 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-        </a>
-        <a href="/pricing" className="faq-cta-link">View pricing plans</a>
+        </Link>
+        <Link href="/pricing" className="faq-cta-link">View pricing plans</Link>
       </div>
     </div>
   )

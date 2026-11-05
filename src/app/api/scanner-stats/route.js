@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server'
 import { cacheGetWithMeta } from '../../../lib/cache'
-import { ensureWorkerRunning, waitForFirstCycle, STATS_KEY } from '../../../lib/scanner-worker'
+import { ensureWorkerRunning, STATS_KEY } from '../../../lib/scanner-worker'
 
 export async function GET() {
   ensureWorkerRunning()
-  await waitForFirstCycle()
 
   const cached = cacheGetWithMeta(STATS_KEY)
-  const stats = cached.value || { scanned: 0, arbCount: 0, totalEdge: 0 }
+  const stats = cached.value || { scanned: 0, matchedCount: 0, arbCount: 0, totalEdge: 0 }
 
   return NextResponse.json({
     ...stats,

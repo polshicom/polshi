@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+
 import { useState, useEffect } from 'react'
 
 function formatTimeAgo(isoStr) {
@@ -58,12 +60,12 @@ export default function WhaleYesterday() {
           )}
         </div>
         <div className="whale-yesterday-footer">
-          <a href="/whales" className="whale-yesterday-cta">
+          <Link href="/whales" className="whale-yesterday-cta">
             View all whale trades
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="m9 18 6-6-6-6" />
             </svg>
-          </a>
+          </Link>
           <span className="whale-yesterday-time">{formatTimeAgo(whale.time)}</span>
         </div>
       </div>

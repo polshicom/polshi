@@ -16,6 +16,7 @@ export default function StatusBar() {
   function processStats(data) {
     setStats({
       scanned: data.scanned || 0,
+      matchedCount: data.matchedCount || 0,
       arbCount: data.arbCount || 0,
       totalEdge: data.totalEdge || 0,
     })

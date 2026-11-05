@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server'
 import { cacheGetWithMeta } from '../../../lib/cache'
-import { ensureWorkerRunning, waitForFirstCycle, TOP_ARB_KEY } from '../../../lib/scanner-worker'
+import { ensureWorkerRunning, TOP_ARB_KEY } from '../../../lib/scanner-worker'
 
 export async function GET() {
   ensureWorkerRunning()
-  await waitForFirstCycle()
 
   const cached = cacheGetWithMeta(TOP_ARB_KEY)
   const topArb = cached.value ?? null

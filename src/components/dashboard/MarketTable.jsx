@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Flame } from 'lucide-react'
 import UpgradeOverlay from './UpgradeOverlay'
@@ -535,7 +537,7 @@ export default function MarketTable({ initialMarkets, isPro, refreshInterval }) 
                 <strong>{arbCount} arb{arbCount !== 1 ? 's' : ''}</strong> found in the past hour
               </span>
             </div>
-            <a href="/signup" className="arb-banner-btn">Try free</a>
+            <Link href="/signup" className="arb-banner-btn">Try free</Link>
             <button className="arb-banner-close" onClick={() => setBannerDismissed(true)} aria-label="Dismiss">
               &times;
             </button>

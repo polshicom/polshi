@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+
 import { useState, useEffect } from 'react'
 
 function formatTimeAgo(isoStr) {
@@ -72,12 +74,12 @@ export default function TopWhales() {
           ))}
         </div>
         <div className="top-whales-footer">
-          <a href="/whales" className="top-whales-cta">
+          <Link href="/whales" className="top-whales-cta">
             View all whale trades
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="m9 18 6-6-6-6" />
             </svg>
-          </a>
+          </Link>
         </div>
       </div>
     </section>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { PolshiLogo } from '../icons/PolshiLogo'
 import ThemeToggle from '../landing/ThemeToggle'
 
@@ -71,36 +72,36 @@ export default function Navbar({ user }) {
         <div className="glass-layer glass-shine" />
 
         <div className="glass-navbar-inner">
-          <a href="/" className="navbar-logo">
+          <Link href="/" className="navbar-logo">
             <PolshiLogo />
             Polshi
-          </a>
+          </Link>
 
           <nav className="navbar-nav glass-nav-pills">
-            <a href="/explore" className="glass-pill">Markets</a>
-            <a href="/whales" className="glass-pill">Whales</a>
-            <a href="/arbitrage" className="glass-pill">Scanner</a>
-            <a href="/faq" className="glass-pill">Learn</a>
-            <a href="/pricing" className="glass-pill">Pricing</a>
-            <a href="/hub" className="glass-pill">Hub</a>
+            <Link href="/explore" className="glass-pill">Markets</Link>
+            <Link href="/whales" className="glass-pill">Whales</Link>
+            <Link href="/arbitrage" className="glass-pill">Scanner</Link>
+            <Link href="/faq" className="glass-pill">Learn</Link>
+            <Link href="/pricing" className="glass-pill">Pricing</Link>
+            <Link href="/hub" className="glass-pill">Hub</Link>
           </nav>
 
           <div className="navbar-actions">
             <ThemeToggle />
             {user ? (
               <div className="navbar-user">
-                <a href="/settings" className="navbar-avatar">
+                <Link href="/settings" className="navbar-avatar">
                   {user.image ? (
                     <img src={user.image} alt={user.name || 'User'} />
                   ) : (
                     user.name?.charAt(0)?.toUpperCase() || '?'
                   )}
-                </a>
+                </Link>
               </div>
             ) : (
               <>
-                <a href="/login" className="navbar-login">Log in</a>
-                <a href="/signup" className="glass-signup">Sign in</a>
+                <Link href="/login" className="navbar-login">Log in</Link>
+                <Link href="/signup" className="glass-signup">Sign in</Link>
               </>
             )}
             <button
@@ -120,14 +121,14 @@ export default function Navbar({ user }) {
 
       {mobileOpen && (
         <nav className="mobile-nav-dropdown" onClick={() => setMobileOpen(false)}>
-          <a href="/explore" className="mobile-nav-link">Markets</a>
-          <a href="/arbitrage" className="mobile-nav-link">Scanner</a>
-          <a href="/whales" className="mobile-nav-link">Whales</a>
-          <a href="/hub" className="mobile-nav-link">Hub</a>
-          <a href="/faq" className="mobile-nav-link">Learn</a>
-          <a href="/pricing" className="mobile-nav-link">Pricing</a>
-          {!user && <a href="/login" className="mobile-nav-link">Log in</a>}
-          {user && <a href="/settings" className="mobile-nav-link">Settings</a>}
+          <Link href="/explore" className="mobile-nav-link">Markets</Link>
+          <Link href="/arbitrage" className="mobile-nav-link">Scanner</Link>
+          <Link href="/whales" className="mobile-nav-link">Whales</Link>
+          <Link href="/hub" className="mobile-nav-link">Hub</Link>
+          <Link href="/faq" className="mobile-nav-link">Learn</Link>
+          <Link href="/pricing" className="mobile-nav-link">Pricing</Link>
+          {!user && <Link href="/login" className="mobile-nav-link">Log in</Link>}
+          {user && <Link href="/settings" className="mobile-nav-link">Settings</Link>}
         </nav>
       )}
     </>

@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { PolshiLogoFooter } from '../icons/PolshiLogo'
 
 export default function Footer() {
@@ -12,15 +13,15 @@ export default function Footer() {
         </div>
         <div className="footer-column">
           <h4>Product</h4>
-          <a href="/arbitrage">Scanner</a>
-          <a href="/explore">Markets</a>
-          <a href="/whales">Whale Tracking</a>
-          <a href="/hub">Hub</a>
+          <Link href="/arbitrage">Scanner</Link>
+          <Link href="/explore">Markets</Link>
+          <Link href="/whales">Whale Tracking</Link>
+          <Link href="/hub">Hub</Link>
         </div>
         <div className="footer-column">
           <h4>Resources</h4>
-          <a href="/pricing">Pricing</a>
-          <a href="/volume">Volume Dashboard</a>
+          <Link href="/pricing">Pricing</Link>
+          <Link href="/volume">Volume Dashboard</Link>
         </div>
         <div className="footer-column">
           <h4>Legal</h4>

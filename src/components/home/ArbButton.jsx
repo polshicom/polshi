@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+
 import { useState, useEffect } from 'react'
 
 export default function ArbButton() {
@@ -17,7 +19,7 @@ export default function ArbButton() {
   const profitLabel = arb ? `${arb.edge}¢ edge · $${Math.round(arb.edge * 10)}/1K` : null
 
   return (
-    <a href="/arbitrage" className="arb-btn">
+    <Link href="/arbitrage" className="arb-btn">
       <span className="arb-btn-dot" />
       <span className="arb-btn-label">
         Top Arb of the Day
@@ -27,6 +29,6 @@ export default function ArbButton() {
       <svg className="arb-btn-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="m9 18 6-6-6-6" />
       </svg>
-    </a>
+    </Link>
   )
 }

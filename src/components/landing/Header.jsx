@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { auth } from '../../lib/auth'
 import { PolshiLogo } from '../icons/PolshiLogo'
 import ThemeToggle from './ThemeToggle'
@@ -9,31 +10,31 @@ export default async function Header() {
 
   return (
     <header className="header">
-      <a href="/" className="header-logo">
+      <Link href="/" className="header-logo">
         <PolshiLogo />
         Polshi
-      </a>
+      </Link>
       <nav className="header-nav">
-        <a href="/explore">Markets</a>
-        <a href="/hub">Hub</a>
-        <a href="/whales">Whales</a>
-        <a href="/arbitrage">Scanner</a>
-        <a href="/pricing">Pricing</a>
+        <Link href="/explore">Markets</Link>
+        <Link href="/hub">Hub</Link>
+        <Link href="/whales">Whales</Link>
+        <Link href="/arbitrage">Scanner</Link>
+        <Link href="/pricing">Pricing</Link>
       </nav>
       <div className="header-actions">
         <ThemeToggle />
         {user ? (
-          <a href="/settings" className="header-avatar">
+          <Link href="/settings" className="header-avatar">
             {user.image ? (
               <img src={user.image} alt={user.name || 'User'} />
             ) : (
               user.name?.charAt(0)?.toUpperCase() || '?'
             )}
-          </a>
+          </Link>
         ) : (
           <>
-            <a href="/login" className="header-login">Log in</a>
-            <a href="/signup" className="header-signup">Sign in</a>
+            <Link href="/login" className="header-login">Log in</Link>
+            <Link href="/signup" className="header-signup">Sign in</Link>
           </>
         )}
         <MobileMenu isLoggedIn={!!user} />
