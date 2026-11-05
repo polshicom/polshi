@@ -7,22 +7,23 @@ import { getSupabaseAdmin } from './supabase'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+const googleClientId = process.env.GOOGLE_CLIENT_ID || ''
+const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET || ''
+export const hasGoogle = !!(googleClientId && googleClientSecret)
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
-  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
-  adapter: supabaseUrl
-    ? SupabaseAdapter({ url: supabaseUrl, secret: supabaseServiceKey })
-    : undefined,
-  session: { strategy: 'jwt' },
-  pages: {
-    signIn: '/login',
-    newUser: '/dashboard',
-  },
-  providers: [
+const providers = []
+
+if (hasGoogle) {
+  providers.push(
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || '',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
-    }),
+      clientId: googleClientId,
+      clientSecret: googleClientSecret,
+      allowDangerousEmailAccountLinking: true,
+    })
+  )
+}
+
+providers.push(
     CredentialsProvider({
       name: 'credentials',
       credentials: {
@@ -52,7 +53,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
       },
     }),
-  ],
+  )
+
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
+  adapter: supabaseUrl
+    ? SupabaseAdapter({ url: supabaseUrl, secret: supabaseServiceKey })
+    : undefined,
+  session: { strategy: 'jwt' },
+  pages: {
+    signIn: '/login',
+    newUser: '/dashboard',
+    error: '/login',
+  },
+  providers,
   callbacks: {
     async jwt({ token, user }) {
       if (user) {

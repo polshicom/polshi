@@ -9,7 +9,8 @@ create table if not exists users (
   email text unique,
   "emailVerified" timestamptz,
   image text,
-  password_hash text
+  password_hash text,
+  plan text not null default 'free'
 );
 
 create table if not exists accounts (
