@@ -56,9 +56,14 @@ let lastRunMs = 0
 let lastRunTimings = null
 let consecutiveErrors = 0
 let firstCyclePromise = null
+let firstCycleComplete = false
 
 export function getLastTimings() {
   return lastRunTimings
+}
+
+export function isWarming() {
+  return workerRunning && !firstCycleComplete
 }
 
 async function runCycle() {
@@ -243,6 +248,7 @@ async function runCycle() {
     lastRunMs = Date.now()
     lastRunTimings = timings
     consecutiveErrors = 0
+    firstCycleComplete = true
 
     console.log(
       `[scanner-worker] Cycle complete: ${markets.length} results cached ` +

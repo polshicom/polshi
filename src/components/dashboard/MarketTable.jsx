@@ -133,7 +133,9 @@ export default function MarketTable({ initialMarkets, isPro, refreshInterval }) 
   const [bannerDismissed, setBannerDismissed] = useState(false)
   const [freeDismissed, setFreeDismissed] = useState(new Set())
   const [stake, setStake] = useState(1000)
+  const [warming, setWarming] = useState(false)
   const hasFetched = useRef(false)
+  const warmingPoll = useRef(null)
 
   useEffect(() => {
     setCommunityVerified(loadSet(VERIFIED_KEY))
@@ -201,11 +203,37 @@ export default function MarketTable({ initialMarkets, isPro, refreshInterval }) 
       const data = await res.json()
       if (data.markets) {
         setMarkets(data.markets)
-        // Use the server's cache timestamp if available
         const serverTime = data.meta?.lastUpdated ? new Date(data.meta.lastUpdated) : new Date()
         setLastUpdated(serverTime)
         setCountdown(refreshInterval || 60)
-        setLoading(false)
+        if (data.markets.length > 0) setLoading(false)
+
+        const isWarming = data.meta?.warming && data.markets.length === 0
+        setWarming(isWarming)
+
+        if (isWarming && !warmingPoll.current) {
+          warmingPoll.current = setInterval(async () => {
+            try {
+              const r = await fetch('/api/markets?confidence=all&limit=200')
+              const d = await r.json()
+              if (d.markets?.length > 0) {
+                setMarkets(d.markets)
+                setLastUpdated(d.meta?.lastUpdated ? new Date(d.meta.lastUpdated) : new Date())
+                setLoading(false)
+                setWarming(false)
+                clearInterval(warmingPoll.current)
+                warmingPoll.current = null
+              }
+            } catch {}
+          }, 3000)
+        } else if (!isWarming && warmingPoll.current) {
+          clearInterval(warmingPoll.current)
+          warmingPoll.current = null
+        }
+
+        if (!data.meta?.warming && data.markets.length === 0) {
+          setLoading(false)
+        }
       }
     } catch {
       setLoading(false)
@@ -213,11 +241,17 @@ export default function MarketTable({ initialMarkets, isPro, refreshInterval }) 
     if (manual) setRefreshing(false)
   }, [refreshInterval])
 
-  // Fetch on mount (page renders instantly, data loads client-side)
+  // Fetch on mount — returns instantly from disk cache or triggers warming poll
   useEffect(() => {
     if (hasFetched.current) return
     hasFetched.current = true
     fetchMarkets()
+    return () => {
+      if (warmingPoll.current) {
+        clearInterval(warmingPoll.current)
+        warmingPoll.current = null
+      }
+    }
   }, [fetchMarkets])
 
   // Auto-refresh interval for pro users
@@ -446,8 +480,12 @@ export default function MarketTable({ initialMarkets, isPro, refreshInterval }) 
 
           {/* Body */}
           <div className="mt-body">
-            {loading && (
+            {(loading || warming) && visibleRows.length === 0 && (
               <>
+                <div className="mt-warming">
+                  <div className="mt-warming-spinner" />
+                  <span>{warming ? 'Scanning markets — data arrives in seconds...' : 'Loading...'}</span>
+                </div>
                 <SkeletonRow />
                 <SkeletonRow />
                 <SkeletonRow />
@@ -455,7 +493,7 @@ export default function MarketTable({ initialMarkets, isPro, refreshInterval }) 
                 <SkeletonRow />
               </>
             )}
-            {!loading && visibleRows.map((m, i) => (
+            {visibleRows.map((m, i) => (
               <MarketRow
                 key={i}
                 market={m}
@@ -475,11 +513,11 @@ export default function MarketTable({ initialMarkets, isPro, refreshInterval }) 
                 isLast={i === blurredRows.length - 1}
               />
             ))}
-            {!loading && filtered.length === 0 && (
+            {!loading && !warming && filtered.length === 0 && visibleRows.length === 0 && (
               <div className="mt-empty">
                 {search || confidenceFilter !== 'all' || categoryFilter !== 'all'
                   ? 'No matches for current filters — try broadening your search'
-                  : 'Scanner is warming up — results appear within 30 seconds'}
+                  : 'No arbitrage opportunities found right now'}
               </div>
             )}
           </div>

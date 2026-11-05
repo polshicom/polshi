@@ -1508,6 +1508,31 @@ html[data-theme="dark"] .dominance-secondary {
   border-bottom: 1px solid var(--color-border-primary);
 }
 
+/* Warming state */
+.mt-warming {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 20px 16px 12px;
+  color: var(--color-brand-bg);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.mt-warming-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--glass-border);
+  border-top-color: var(--color-brand-bg);
+  border-radius: 50%;
+  animation: warming-spin 0.7s linear infinite;
+}
+
+@keyframes warming-spin {
+  to { transform: rotate(360deg); }
+}
+
 /* Empty state */
 .mt-empty {
   text-align: center;

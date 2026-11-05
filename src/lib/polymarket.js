@@ -22,7 +22,7 @@ export async function fetchPolymarketMarkets() {
   // Fetch multiple pages to get broader coverage (including sports, crypto, etc.)
   const allData = []
   const pageSize = 100
-  const maxPages = 20
+  const maxPages = 10
 
   for (let page = 0; page < maxPages; page++) {
     const params = new URLSearchParams({

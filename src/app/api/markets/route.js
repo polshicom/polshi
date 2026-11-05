@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '../../../lib/auth'
 import { cacheGetWithMeta } from '../../../lib/cache'
-import { ensureWorkerRunning, waitForFirstCycle, CACHE_KEY, getLastTimings } from '../../../lib/scanner-worker'
+import { ensureWorkerRunning, CACHE_KEY, getLastTimings, isWarming } from '../../../lib/scanner-worker'
 
 const FREE_MARKET_LIMIT = 5
 
@@ -17,9 +17,8 @@ export async function GET(request) {
   const session = await auth()
   const isPro = session?.user?.isPro || false
 
-  // Ensure background worker is running and has data
+  // Start background worker — never block the response
   ensureWorkerRunning()
-  await waitForFirstCycle()
 
   try {
     const cached = cacheGetWithMeta(CACHE_KEY)
@@ -84,6 +83,7 @@ export async function GET(request) {
         lastUpdated: cacheTimestamp ? new Date(cacheTimestamp).toISOString() : null,
         cacheAgeMs: Math.round(cacheAgeMs),
         isStale,
+        warming: isWarming(),
         responseMs: responseTimeMs,
         workerTimings: debug ? timings : undefined,
       },
