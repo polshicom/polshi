@@ -1,17 +1,14 @@
 /**
- * Category-first market matcher.
+ * Category-first market matcher with fingerprint-enhanced scoring.
  *
- * Strategy: categorize → match within categories → compute arb.
- * This finds ALL matching markets first, then calculates edge after.
- *
- * 1. Categorize every market on both platforms
- * 2. Within each category, compare Poly vs Kalshi using text similarity
- * 3. Score matches by keyword overlap + entity overlap
- * 4. Greedy 1:1 assignment (best match wins)
+ * 1. Pre-compute fingerprints + keywords for every market (once)
+ * 2. Categorize → compare within categories using multi-signal scoring
+ * 3. Cross-category fallback for miscategorized markets
+ * 4. Greedy 1:1 assignment (best score wins, with edge-weighted tiebreak)
  * 5. Build result with edge/arb calculations
  */
 
-import { categorize } from './fingerprint.js'
+import { categorize, buildFingerprint } from './fingerprint.js'
 
 // ── Helpers ──────────────────────────────────────────
 
@@ -54,10 +51,19 @@ function getKeywords(market) {
   const q = market.question || ''
   const desc = market.description || ''
   const qWords = normalizeText(q)
-  const descWords = normalizeText(desc).slice(0, 8)
+  const descWords = normalizeText(desc).slice(0, 10)
   const set = new Set(qWords)
   for (const w of descWords) set.add(w)
   return set
+}
+
+function getBigrams(market) {
+  const words = normalizeText(market.question || '')
+  const bigrams = new Set()
+  for (let i = 0; i < words.length - 1; i++) {
+    bigrams.add(`${words[i]} ${words[i + 1]}`)
+  }
+  return bigrams
 }
 
 // ── Similarity Scoring ──────────────────────────────
@@ -81,40 +87,6 @@ function overlapCoefficient(setA, setB) {
   return intersection / Math.min(setA.size, setB.size)
 }
 
-function extractYear(text) {
-  const m = text.match(/\b(20[2-3]\d)\b/)
-  return m ? m[1] : null
-}
-
-function extractMonth(text) {
-  const months = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12,
-    january: 1, february: 2, march: 3, april: 4, june: 6, july: 7, august: 8, september: 9, october: 10, november: 11, december: 12 }
-  const m = text.toLowerCase().match(/\b(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)\b/)
-  return m ? months[m[1]] : null
-}
-
-function extractNumericTarget(text) {
-  const dollar = text.match(/\$\s*([\d,.]+)\s*([KMBkmb])?/)
-  if (dollar) {
-    let val = parseFloat(dollar[1].replace(/,/g, ''))
-    const s = (dollar[2] || '').toUpperCase()
-    if (s === 'K') val *= 1_000
-    if (s === 'M') val *= 1_000_000
-    if (s === 'B') val *= 1_000_000_000
-    return val
-  }
-  const pct = text.match(/([\d.]+)\s*(%|percent)/i)
-  if (pct) return parseFloat(pct[1])
-  const bps = text.match(/(\d+)\s*(bps|basis\s+points)/i)
-  if (bps) return parseFloat(bps[1])
-  return null
-}
-
-function detectPolarity(text) {
-  if (/\bnot\b|\bwon't\b|\bwill\s+not\b|\bfail\s+to\b|\bnever\b/i.test(text)) return 'negative'
-  return 'positive'
-}
-
 // ── Kalshi Sub-market Gate ──────────────────────────
 
 function extractKalshiAnswer(question) {
@@ -130,11 +102,21 @@ function questionContainsAnswer(question, answer) {
   return words.length > 0 && words.every(w => qLower.includes(w))
 }
 
-// ── Pair Scoring ────────────────────────────────────
-// Scores how likely two markets are the same event.
-// Returns 0-100, higher = more likely same market.
+// ── Pre-computed Market Data ────────────────────────
 
-function scorePair(pm, km) {
+function precompute(market) {
+  return {
+    keywords: getKeywords(market),
+    bigrams: getBigrams(market),
+    fp: buildFingerprint(market),
+    category: categorize(market.question),
+  }
+}
+
+// ── Pair Scoring (multi-signal) ─────────────────────
+// Uses pre-computed keywords, bigrams, and fingerprints.
+
+function scorePair(pm, km, pmData, kmData) {
   const pmQ = pm.question || ''
   const kmQ = km.question || ''
 
@@ -142,50 +124,105 @@ function scorePair(pm, km) {
   const kAnswer = extractKalshiAnswer(kmQ)
   if (kAnswer && !questionContainsAnswer(pmQ, kAnswer)) return { score: 0, reason: 'sub-market mismatch' }
 
-  const pmKeywords = getKeywords(pm)
-  const kmKeywords = getKeywords(km)
+  const pmFp = pmData.fp
+  const kmFp = kmData.fp
 
-  // Core text similarity
-  const jaccard = jaccardSimilarity(pmKeywords, kmKeywords)
-  const overlap = overlapCoefficient(pmKeywords, kmKeywords)
-  const textScore = (jaccard * 0.4 + overlap * 0.6) * 60
+  // Signal 1: Keyword similarity (unigrams)
+  const jaccard = jaccardSimilarity(pmData.keywords, kmData.keywords)
+  const overlap = overlapCoefficient(pmData.keywords, kmData.keywords)
+  const unigramScore = (jaccard * 0.4 + overlap * 0.6) * 50
+
+  // Signal 2: Bigram similarity (phrase matching)
+  const bigramJaccard = jaccardSimilarity(pmData.bigrams, kmData.bigrams)
+  const bigramScore = bigramJaccard * 15
 
   let bonus = 0
   let penalty = 0
   const reasons = []
 
-  // Year check
-  const pmYear = extractYear(pmQ)
-  const kmYear = extractYear(kmQ)
+  // Signal 3: Canonical entity overlap from fingerprints
+  const pmEntities = new Set((pmFp.allEntities || []).map(e => e.toLowerCase()))
+  const kmEntities = new Set((kmFp.allEntities || []).map(e => e.toLowerCase()))
+  if (pmEntities.size > 0 && kmEntities.size > 0) {
+    let entityOverlap = 0
+    for (const e of pmEntities) {
+      if (kmEntities.has(e)) entityOverlap++
+    }
+    const entityRatio = entityOverlap / Math.min(pmEntities.size, kmEntities.size)
+    if (entityRatio >= 0.5) { bonus += 12; reasons.push(`${entityOverlap} entities`) }
+
+    // Primary entity must match if both have one
+    if (pmFp.entity && kmFp.entity) {
+      const pmPrimary = pmFp.entity.toLowerCase()
+      const kmPrimary = kmFp.entity.toLowerCase()
+      if (pmPrimary === kmPrimary || pmPrimary.includes(kmPrimary) || kmPrimary.includes(pmPrimary)) {
+        bonus += 8
+        reasons.push('same subject')
+      } else if (entityOverlap === 0) {
+        penalty += 12
+        reasons.push('diff subject')
+      }
+    }
+  }
+
+  // Signal 4: Topic match from fingerprints
+  if (pmFp.topic && kmFp.topic && pmFp.topic !== 'generic_unknown' && kmFp.topic !== 'generic_unknown') {
+    if (pmFp.topic === kmFp.topic) { bonus += 8; reasons.push('same topic') }
+    else { penalty += 5; reasons.push('diff topic') }
+  }
+
+  // Signal 5: Action match
+  if (pmFp.action && kmFp.action && pmFp.action !== 'unknown' && kmFp.action !== 'unknown') {
+    if (pmFp.action === kmFp.action) { bonus += 5; reasons.push('same action') }
+    else if (
+      (pmFp.action === 'above' && kmFp.action === 'reach') ||
+      (pmFp.action === 'reach' && kmFp.action === 'above') ||
+      (pmFp.action === 'win' && kmFp.action === 'happen') ||
+      (pmFp.action === 'happen' && kmFp.action === 'win')
+    ) {
+      bonus += 3
+      reasons.push('similar action')
+    }
+  }
+
+  // Signal 6: Scope match (tournament vs group vs match)
+  if (pmFp.scope && kmFp.scope) {
+    if (pmFp.scope !== kmFp.scope) { penalty += 15; reasons.push('diff scope') }
+  }
+
+  // Signal 7: Year match
+  const pmYear = pmFp.yearInText
+  const kmYear = kmFp.yearInText
   if (pmYear && kmYear) {
     if (pmYear === kmYear) { bonus += 8; reasons.push('same year') }
     else { penalty += 20; reasons.push('diff year') }
   }
 
-  // Month check
-  const pmMonth = extractMonth(pmQ)
-  const kmMonth = extractMonth(kmQ)
+  // Signal 8: Month match
+  const pmMonth = pmFp.monthInText
+  const kmMonth = kmFp.monthInText
   if (pmMonth && kmMonth) {
     if (pmMonth === kmMonth) { bonus += 5; reasons.push('same month') }
     else { penalty += 10; reasons.push('diff month') }
   }
 
-  // Numeric target check
-  const pmTarget = extractNumericTarget(pmQ)
-  const kmTarget = extractNumericTarget(kmQ)
+  // Signal 9: Numeric target match
+  const pmTarget = pmFp.numericTarget
+  const kmTarget = kmFp.numericTarget
   if (pmTarget != null && kmTarget != null) {
     const ratio = Math.min(pmTarget, kmTarget) / Math.max(pmTarget, kmTarget)
-    if (ratio >= 0.9) { bonus += 12; reasons.push('same target') }
+    if (ratio >= 0.95) { bonus += 15; reasons.push('same target') }
+    else if (ratio >= 0.8) { bonus += 5; reasons.push('close target') }
     else if (ratio < 0.5) { penalty += 15; reasons.push('diff target') }
   }
 
-  // Polarity check
-  if (detectPolarity(pmQ) !== detectPolarity(kmQ)) {
+  // Signal 10: Polarity match
+  if (pmFp.polarity !== kmFp.polarity) {
     penalty += 15
     reasons.push('polarity mismatch')
   }
 
-  // End date proximity bonus
+  // Signal 11: End date proximity
   if (pm.endDate && km.endDate) {
     const pmDate = new Date(pm.endDate)
     const kmDate = new Date(km.endDate)
@@ -197,73 +234,19 @@ function scorePair(pm, km) {
     }
   }
 
-  // Shared proper names bonus (beyond keyword overlap)
-  const pmNames = extractProperNames(pmQ)
-  const kmNames = extractProperNames(kmQ)
-  if (pmNames.size > 0 && kmNames.size > 0) {
-    let nameOverlap = 0
-    for (const n of pmNames) {
-      if (kmNames.has(n)) nameOverlap++
-      for (const kn of kmNames) {
-        if (n !== kn && (n.includes(kn) || kn.includes(n))) nameOverlap++
-      }
-    }
-    if (nameOverlap > 0) { bonus += 15; reasons.push(`${nameOverlap} shared names`) }
-  }
-
+  const textScore = unigramScore + bigramScore
   const finalScore = Math.max(0, Math.min(100, Math.round(textScore + bonus - penalty)))
   return {
     score: finalScore,
-    reason: `text=${(textScore).toFixed(0)} +${bonus} -${penalty} [${reasons.join(', ')}]`,
+    reason: `text=${textScore.toFixed(0)} +${bonus} -${penalty} [${reasons.join(', ')}]`,
     jaccard: Math.round(jaccard * 100),
     overlap: Math.round(overlap * 100),
   }
 }
 
-// ── Proper Name Extraction ──────────────────────────
-
-function extractProperNames(text) {
-  const names = new Set()
-  const skip = new Set([
-    'will', 'what', 'which', 'before', 'after', 'during', 'between',
-    'under', 'over', 'next', 'first', 'last', 'prime', 'minister',
-    'president', 'governor', 'chancellor', 'secretary', 'general',
-    'election', 'party', 'democratic', 'republican', 'house', 'senate',
-    'january', 'february', 'march', 'april', 'june', 'july', 'august',
-    'september', 'october', 'november', 'december', 'actor', 'film',
-    'championship', 'premier', 'league', 'series', 'cup', 'bowl',
-    'finals', 'conference', 'division', 'season', 'total', 'market',
-    'price', 'rate', 'level', 'much', 'new', 'united', 'states',
-    'national', 'federal', 'reserve', 'international', 'significant',
-  ])
-
-  // Multi-word capitalized
-  const multi = text.matchAll(/\b([A-Z][a-z]+(?:\s+(?:[A-Z]\.?\s*)?[A-Z][a-z]+)+)\b/g)
-  for (const m of multi) {
-    const name = m[1].trim().toLowerCase()
-    if (!skip.has(name)) names.add(name)
-  }
-
-  // Single caps 4+ chars
-  const singles = text.matchAll(/\b([A-Z][a-z]{3,})\b/g)
-  for (const m of singles) {
-    const w = m[1].toLowerCase()
-    if (!skip.has(w)) names.add(w)
-  }
-
-  // Tickers/acronyms
-  const tickers = text.matchAll(/\b([A-Z]{2,6})\b/g)
-  for (const m of tickers) {
-    const t = m[1].toLowerCase()
-    if (!skip.has(t) && t.length >= 3) names.add(t)
-  }
-
-  return names
-}
-
 // ── Build Match Entry ────────────────────────────────
 
-function buildMatch(pm, km, score, reason) {
+function buildMatch(pm, km, score, reason, pmCategory) {
   const pmProb = pm.prob
   const kProb = km.prob
   const pmCents = probToCents(pmProb)
@@ -286,7 +269,7 @@ function buildMatch(pm, km, score, reason) {
 
   return {
     question: pm.question,
-    category: categorize(pm.question),
+    category: pmCategory || categorize(pm.question),
     polymarket: pmCents,
     kalshi: kCents,
     edge: edgeCents,
@@ -320,21 +303,25 @@ function buildMatch(pm, km, score, reason) {
 
 // ── Main Matching ────────────────────────────────────
 
-const MATCH_THRESHOLD = 30
+const MATCH_THRESHOLD = 28
 
 export function matchMarkets(polymarkets, kalshiMarkets) {
-  // Step 1: Categorize all markets
+  // Step 1: Pre-compute fingerprints, keywords, bigrams, categories ONCE
+  const polyData = polymarkets.map(m => precompute(m))
+  const kalshiData = kalshiMarkets.map(m => precompute(m))
+
+  // Step 2: Index by category
   const polyByCategory = {}
   const kalshiByCategory = {}
 
-  for (let i = 0; i < polymarkets.length; i++) {
-    const cat = categorize(polymarkets[i].question)
+  for (let i = 0; i < polyData.length; i++) {
+    const cat = polyData[i].category
     if (!polyByCategory[cat]) polyByCategory[cat] = []
     polyByCategory[cat].push(i)
   }
 
-  for (let i = 0; i < kalshiMarkets.length; i++) {
-    const cat = categorize(kalshiMarkets[i].question)
+  for (let i = 0; i < kalshiData.length; i++) {
+    const cat = kalshiData[i].category
     if (!kalshiByCategory[cat]) kalshiByCategory[cat] = []
     kalshiByCategory[cat].push(i)
   }
@@ -342,8 +329,8 @@ export function matchMarkets(polymarkets, kalshiMarkets) {
   const allCategories = new Set([...Object.keys(polyByCategory), ...Object.keys(kalshiByCategory)])
   console.log(`[matcher] Categories: ${[...allCategories].map(c => `${c}(${(polyByCategory[c]||[]).length}p/${(kalshiByCategory[c]||[]).length}k)`).join(', ')}`)
 
-  // Step 2: Within each category, score all cross-platform pairs
-  const candidates = []
+  // Step 3: Score pairs within each category
+  const candidateMap = new Map()
 
   for (const cat of allCategories) {
     const polyIndices = polyByCategory[cat] || []
@@ -352,72 +339,74 @@ export function matchMarkets(polymarkets, kalshiMarkets) {
 
     for (const pi of polyIndices) {
       for (const ki of kalshiIndices) {
-        const result = scorePair(polymarkets[pi], kalshiMarkets[ki])
+        const result = scorePair(polymarkets[pi], kalshiMarkets[ki], polyData[pi], kalshiData[ki])
         if (result.score >= MATCH_THRESHOLD) {
-          candidates.push({ pmIdx: pi, kIdx: ki, score: result.score, reason: result.reason, cat })
+          const key = `${pi}:${ki}`
+          const existing = candidateMap.get(key)
+          if (!existing || result.score > existing.score) {
+            candidateMap.set(key, { pmIdx: pi, kIdx: ki, score: result.score, reason: result.reason, cat })
+          }
         }
       }
     }
   }
 
-  // Step 3: Also try cross-category matching for "Other" bucket
-  // Markets miscategorized on one platform might match correctly on the other
+  // Step 4: Cross-category for "Other" and adjacent categories
   const otherPoly = polyByCategory['Other'] || []
   const otherKalshi = kalshiByCategory['Other'] || []
 
-  // Match "Other" poly against ALL kalshi categories
   for (const pi of otherPoly) {
     for (let ki = 0; ki < kalshiMarkets.length; ki++) {
-      const result = scorePair(polymarkets[pi], kalshiMarkets[ki])
-      if (result.score >= MATCH_THRESHOLD + 10) {
-        candidates.push({ pmIdx: pi, kIdx: ki, score: result.score, reason: result.reason, cat: 'cross' })
+      const key = `${pi}:${ki}`
+      if (candidateMap.has(key)) continue
+      const result = scorePair(polymarkets[pi], kalshiMarkets[ki], polyData[pi], kalshiData[ki])
+      if (result.score >= MATCH_THRESHOLD + 5) {
+        candidateMap.set(key, { pmIdx: pi, kIdx: ki, score: result.score, reason: result.reason, cat: 'cross' })
       }
     }
   }
 
-  // Match "Other" kalshi against ALL poly categories
   for (const ki of otherKalshi) {
     for (let pi = 0; pi < polymarkets.length; pi++) {
-      const result = scorePair(polymarkets[pi], kalshiMarkets[ki])
-      if (result.score >= MATCH_THRESHOLD + 10) {
-        candidates.push({ pmIdx: pi, kIdx: ki, score: result.score, reason: result.reason, cat: 'cross' })
+      const key = `${pi}:${ki}`
+      if (candidateMap.has(key)) continue
+      const result = scorePair(polymarkets[pi], kalshiMarkets[ki], polyData[pi], kalshiData[ki])
+      if (result.score >= MATCH_THRESHOLD + 5) {
+        candidateMap.set(key, { pmIdx: pi, kIdx: ki, score: result.score, reason: result.reason, cat: 'cross' })
       }
     }
   }
 
-  // Deduplicate candidates (same pair might appear from category + cross matching)
-  const seen = new Set()
-  const dedupedCandidates = []
-  for (const c of candidates) {
-    const key = `${c.pmIdx}:${c.kIdx}`
-    if (!seen.has(key)) {
-      seen.add(key)
-      dedupedCandidates.push(c)
-    }
-  }
-
-  // Step 4: Greedy 1:1 assignment — best score wins
-  dedupedCandidates.sort((a, b) => b.score - a.score)
+  // Step 5: Greedy 1:1 assignment — best score wins, tiebreak by edge potential
+  const candidates = [...candidateMap.values()]
+  candidates.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score
+    const aEdge = Math.abs(polymarkets[a.pmIdx].prob - kalshiMarkets[a.kIdx].prob)
+    const bEdge = Math.abs(polymarkets[b.pmIdx].prob - kalshiMarkets[b.kIdx].prob)
+    return bEdge - aEdge
+  })
 
   const usedPoly = new Set()
   const usedKalshi = new Set()
   const matches = []
 
-  for (const c of dedupedCandidates) {
+  for (const c of candidates) {
     if (usedPoly.has(c.pmIdx) || usedKalshi.has(c.kIdx)) continue
     usedPoly.add(c.pmIdx)
     usedKalshi.add(c.kIdx)
-    matches.push(buildMatch(polymarkets[c.pmIdx], kalshiMarkets[c.kIdx], c.score, c.reason))
+    matches.push(buildMatch(polymarkets[c.pmIdx], kalshiMarkets[c.kIdx], c.score, c.reason, polyData[c.pmIdx].category))
   }
 
-  // Sort: verified first, then by edge desc
+  // Sort: high-confidence high-edge first
   matches.sort((a, b) => {
     if (a.verified && !b.verified) return -1
     if (!a.verified && b.verified) return 1
-    return (b.edge ?? -1) - (a.edge ?? -1)
+    const aWeight = (a.matchConfidence / 100) * a.edge
+    const bWeight = (b.matchConfidence / 100) * b.edge
+    return bWeight - aWeight
   })
 
-  console.log(`[matcher] ${polymarkets.length} poly × ${kalshiMarkets.length} kalshi → ${dedupedCandidates.length} candidates → ${matches.length} matches (${matches.filter(m => m.verified).length} verified)`)
+  console.log(`[matcher] ${polymarkets.length} poly × ${kalshiMarkets.length} kalshi → ${candidates.length} candidates → ${matches.length} matches (${matches.filter(m => m.verified).length} verified)`)
 
   return matches
 }

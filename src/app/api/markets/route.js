@@ -9,7 +9,7 @@ export async function GET(request) {
   const t0 = Date.now()
   const { searchParams } = new URL(request.url)
   const confidence = searchParams.get('confidence') || 'all'
-  const limit = Math.min(parseInt(searchParams.get('limit') || '20', 10), 100)
+  const limit = Math.min(parseInt(searchParams.get('limit') || '200', 10), 500)
   const offset = parseInt(searchParams.get('offset') || '0', 10)
   const debug = searchParams.get('debug') === '1'
 

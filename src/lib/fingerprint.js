@@ -570,15 +570,15 @@ export function buildFingerprint(market) {
 
 export function categorize(question) {
   const q = question.toLowerCase()
-  if (/trump|biden|harris|vance|desantis|president|democrat|republican|senate|congress|governor|elect|vote|political|party|nomination|nominee|impeach|speaker|cabinet|scotus|supreme court/.test(q)) return 'US Politics'
-  if (/pope|nato|eu\b|ukraine|russia|china|iran|israel|regime|war\b|ceasefire|sanction|territory|annex|greenland|gaza|palestine|putin|zelensky|modi|trudeau|starmer|macron/.test(q)) return 'World Politics'
-  if (/bitcoin|btc|ethereum|eth|crypto|token|defi|nft|solana|dogecoin|ripple|xrp|stablecoin|blockchain/.test(q)) return 'Crypto'
-  if (/fed\b|federal reserve|interest rate|rate cut|rate hike|gdp|inflation|recession|economy|cpi|jobs|unemployment|tariff|debt|default|treasury|bond|s&p|dow|nasdaq|stock market/.test(q)) return 'Economics'
-  if (/spacex|starship|apple|google|openai|ai\b|artificial intelligence|tech|iphone|tesla|microsoft|meta|amazon|nvidia|robotaxi|autonomous|chatgpt|agi/.test(q)) return 'Tech & AI'
-  if (/nfl|nba|mlb|nhl|mls|ufc|world cup|champion|super bowl|sport|premier league|champions league|la liga|serie a|bundesliga|finals|playoff|mvp|lakers|celtics|warriors|chiefs|eagles|yankees|dodgers|pacers|grizzlies|arsenal|chelsea|liverpool|manchester|real madrid|barcelona|bayern|wimbledon|us open|french open|australian open|march madness|ncaa|stanley cup|world series|lebron|mahomes|messi|ronaldo|ohtani|haaland/.test(q)) return 'Sports'
-  if (/mars|moon|orbit|nasa|spacex|rocket|launch|asteroid|satellite|cern|fusion|quantum|vaccine|pandemic|virus|disease/.test(q)) return 'Science & Space'
+  if (/trump|biden|harris|vance|desantis|haley|ramaswamy|newsom|rfk|kennedy|buttigieg|walz|rubio|sanders|president|democrat|republican|senate|congress|governor|elect|vote|political|party|nomination|nominee|impeach|speaker|cabinet|scotus|supreme court|white house|doge\b.*government|government\b.*efficiency/.test(q)) return 'US Politics'
+  if (/pope|nato|eu\b|ukraine|russia|china|iran|israel|regime|war\b|ceasefire|sanction|territory|annex|greenland|gaza|palestine|putin|zelensky|modi|trudeau|starmer|macron|scholz|merz|netanyahu|xi jinping|north korea|south korea|syria|lebanon|taiwan|un\b|united nations|opec/.test(q)) return 'World Politics'
+  if (/bitcoin|btc|ethereum|eth\b|crypto|token|defi|nft|solana|dogecoin|ripple|xrp|stablecoin|blockchain|cardano|litecoin|chainlink|polkadot|avalanche|pepe coin|sui\b.*crypto/.test(q)) return 'Crypto'
+  if (/fed\b|federal reserve|fomc|interest rate|rate cut|rate hike|gdp|inflation|recession|economy|cpi|jobs|unemployment|tariff|debt|default|treasury|bond|s&p|dow|nasdaq|stock market|nonfarm|trade war/.test(q)) return 'Economics'
+  if (/spacex|starship|apple|google|openai|ai\b|artificial intelligence|tech|iphone|tesla|microsoft|meta\b|amazon|nvidia|robotaxi|autonomous|chatgpt|agi|anthropic|bytedance|tiktok ban/.test(q)) return 'Tech & AI'
+  if (/nfl|nba|mlb|nhl|mls|ufc|world cup|champion|super bowl|sport|premier league|champions league|la liga|serie a|bundesliga|finals|playoff|mvp|lakers|celtics|warriors|knicks|76ers|bucks|heat|nuggets|suns|mavericks|thunder|timberwolves|cavaliers|chiefs|eagles|49ers|cowboys|ravens|bills|lions|dolphins|bengals|packers|steelers|yankees|dodgers|braves|astros|phillies|mets|oilers|panthers|maple leafs|arsenal|chelsea|liverpool|manchester|real madrid|barcelona|bayern|psg|juventus|dortmund|wimbledon|us open|french open|australian open|march madness|ncaa|stanley cup|world series|lebron|mahomes|messi|ronaldo|ohtani|haaland|mbappe|curry|jokic|doncic|giannis|mcdavid/.test(q)) return 'Sports'
+  if (/mars|moon|orbit|nasa|rocket|launch|asteroid|satellite|cern|fusion|quantum|vaccine|pandemic|virus|disease|webb telescope/.test(q)) return 'Science & Space'
   if (/climate|temperature|weather|hurricane|carbon|warming|degrees|wildfire|drought|flood|sea level|emission/.test(q)) return 'Climate'
-  if (/oscar|grammy|emmy|movie|film|album|music|concert|netflix|disney|tiktok|youtube|celebrity|kardashian|taylor swift|beyonce/.test(q)) return 'Entertainment'
-  if (/ipo|acquire|merger|bankrupt|valuation|startup|revenue|profit|market cap|stock|shares|ceo|company/.test(q)) return 'Business'
+  if (/oscar|grammy|emmy|movie|film|album|music|concert|netflix|disney|tiktok|youtube|celebrity|kardashian|taylor swift|beyonce|james bond|007|nobel|golden globe/.test(q)) return 'Entertainment'
+  if (/ipo|acquire|merger|bankrupt|valuation|startup|revenue|profit|market cap|stock|shares|ceo|company|palantir|coinbase|robinhood|stripe|uber|sec\b.*crypto|sec\b.*etf/.test(q)) return 'Business'
   return 'Other'
 }

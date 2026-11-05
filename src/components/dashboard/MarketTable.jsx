@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Flame } from 'lucide-react'
 import UpgradeOverlay from './UpgradeOverlay'
 
@@ -64,37 +64,37 @@ const FAKE_PREMIUM_ROWS = [
   {
     question: 'Will the Fed cut rates at the June 2026 meeting?',
     polymarket: 62, kalshi: 54, edge: 8, difference: 8,
-    totalCost: 92, verified: true,
-    aiConfidence: 97, aiReason: 'Same event, same date',
-    volume: '$14.2M', endDate: '2026-06-15',
+    totalCost: 92, verified: true, isArbSafe: true,
+    matchConfidence: 92, matchReason: 'Same event, same date',
+    volume: '$14.2M', endDate: '2026-06-15', category: 'Economics',
   },
   {
     question: 'Will Bitcoin reach $150K before July 2026?',
     polymarket: 38, kalshi: 31, edge: 7, difference: 7,
-    totalCost: 93, verified: true,
-    aiConfidence: 95, aiReason: 'Same price target and date',
-    volume: '$9.8M', endDate: '2026-07-01',
+    totalCost: 93, verified: true, isArbSafe: true,
+    matchConfidence: 88, matchReason: 'Same price target and date',
+    volume: '$9.8M', endDate: '2026-07-01', category: 'Crypto',
   },
   {
     question: 'Will Tesla deliver Robotaxi in 2026?',
     polymarket: 24, kalshi: 18, edge: 6, difference: 6,
-    totalCost: 94, verified: true,
-    aiConfidence: 92, aiReason: 'Same product launch event',
-    volume: '$7.1M', endDate: '2026-12-31',
+    totalCost: 94, verified: true, isArbSafe: true,
+    matchConfidence: 85, matchReason: 'Same product launch event',
+    volume: '$7.1M', endDate: '2026-12-31', category: 'Tech & AI',
   },
   {
     question: 'Will the US enter a recession in 2026?',
     polymarket: 41, kalshi: 35, edge: 6, difference: 6,
-    totalCost: 94, verified: true,
-    aiConfidence: 94, aiReason: 'Same economic event',
-    volume: '$11.5M', endDate: '2026-12-31',
+    totalCost: 94, verified: true, isArbSafe: true,
+    matchConfidence: 90, matchReason: 'Same economic event',
+    volume: '$11.5M', endDate: '2026-12-31', category: 'Economics',
   },
   {
     question: 'Will SpaceX Starship reach orbit before April 2026?',
     polymarket: 73, kalshi: 68, edge: 5, difference: 5,
-    totalCost: 95, verified: true,
-    aiConfidence: 91, aiReason: 'Same mission milestone',
-    volume: '$5.3M', endDate: '2026-04-01',
+    totalCost: 95, verified: true, isArbSafe: true,
+    matchConfidence: 82, matchReason: 'Same mission milestone',
+    volume: '$5.3M', endDate: '2026-04-01', category: 'Science & Space',
   },
 ]
 
@@ -119,7 +119,8 @@ export default function MarketTable({ initialMarkets, isPro, refreshInterval }) 
   const [markets, setMarkets] = useState(initialMarkets || [])
   const [loading, setLoading] = useState(!initialMarkets || initialMarkets.length === 0)
   const [search, setSearch] = useState('')
-  const [aiFilter, setAiFilter] = useState('all')
+  const [confidenceFilter, setConfidenceFilter] = useState('all')
+  const [categoryFilter, setCategoryFilter] = useState('all')
   const [sortKey, setSortKey] = useState('difference')
   const [sortDir, setSortDir] = useState('desc')
   const [lastUpdated, setLastUpdated] = useState(initialMarkets?.length > 0 ? new Date() : null)
@@ -196,7 +197,7 @@ export default function MarketTable({ initialMarkets, isPro, refreshInterval }) 
   const fetchMarkets = useCallback(async (manual = false) => {
     if (manual) setRefreshing(true)
     try {
-      const res = await fetch('/api/markets?confidence=all&limit=100')
+      const res = await fetch('/api/markets?confidence=all&limit=200')
       const data = await res.json()
       if (data.markets) {
         setMarkets(data.markets)
@@ -236,7 +237,7 @@ export default function MarketTable({ initialMarkets, isPro, refreshInterval }) 
   }, [isPro, refreshInterval])
 
   // Apply community votes
-  const enrichedMarkets = markets.map(m => {
+  const enrichedMarkets = useMemo(() => markets.map(m => {
     if (m.verified) return m
     const isCommunityYes = communityVerified.has(m.question)
     const rejectionReason = communityRejected.get(m.question)
@@ -248,50 +249,63 @@ export default function MarketTable({ initialMarkets, isPro, refreshInterval }) 
       return { ...m, communityRejected: true, rejectionReason }
     }
     return m
-  })
+  }), [markets, communityVerified, communityRejected])
 
-  const filtered = enrichedMarkets
-    .filter(m => {
-      if (m.communityRejected) return false
-      if (search && !m.question.toLowerCase().includes(search.toLowerCase())) return false
-      if (aiFilter !== 'all') {
-        const score = m.aiConfidence ?? 0
-        if (score < Number(aiFilter)) return false
-      }
-      return true
-    })
-    .sort((a, b) => {
-      let aVal, bVal
-      if (sortKey === 'difference') {
-        aVal = a.difference ?? -1
-        bVal = b.difference ?? -1
-      } else if (sortKey === 'totalCost') {
-        aVal = a.totalCost ?? 999
-        bVal = b.totalCost ?? 999
-      } else if (sortKey === 'aiConfidence') {
-        aVal = a.aiConfidence ?? -1
-        bVal = b.aiConfidence ?? -1
-      } else if (sortKey === 'volume') {
-        aVal = parseVolume(a.volume)
-        bVal = parseVolume(b.volume)
-      } else if (sortKey === 'polymarket') {
-        aVal = a.polymarket
-        bVal = b.polymarket
-      } else if (sortKey === 'kalshi') {
-        aVal = a.kalshi
-        bVal = b.kalshi
-      } else if (sortKey === 'endDate') {
-        aVal = a.endDate ? new Date(a.endDate).getTime() : Infinity
-        bVal = b.endDate ? new Date(b.endDate).getTime() : Infinity
-      } else {
-        aVal = a[sortKey]
-        bVal = b[sortKey]
-      }
-      if (sortDir === 'asc') return aVal > bVal ? 1 : -1
-      return aVal < bVal ? 1 : -1
-    })
+  const categories = useMemo(() => {
+    const cats = new Set()
+    for (const m of enrichedMarkets) {
+      if (m.category) cats.add(m.category)
+    }
+    return ['all', ...Array.from(cats).sort()]
+  }, [enrichedMarkets])
 
-  const lockedSorts = isPro ? [] : ['polymarket', 'kalshi', 'difference', 'aiConfidence']
+  const filtered = useMemo(() => {
+    const searchLower = search.toLowerCase()
+    return enrichedMarkets
+      .filter(m => {
+        if (m.communityRejected) return false
+        if (search && !m.question.toLowerCase().includes(searchLower) &&
+            !(m._kalshiQuestion && m._kalshiQuestion.toLowerCase().includes(searchLower))) return false
+        if (confidenceFilter !== 'all') {
+          const score = m.matchConfidence ?? m.aiConfidence ?? 0
+          if (score < Number(confidenceFilter)) return false
+        }
+        if (categoryFilter !== 'all' && m.category !== categoryFilter) return false
+        return true
+      })
+      .sort((a, b) => {
+        let aVal, bVal
+        if (sortKey === 'difference') {
+          aVal = a.difference ?? -1
+          bVal = b.difference ?? -1
+        } else if (sortKey === 'totalCost') {
+          aVal = a.totalCost ?? 999
+          bVal = b.totalCost ?? 999
+        } else if (sortKey === 'matchConfidence') {
+          aVal = a.matchConfidence ?? a.aiConfidence ?? -1
+          bVal = b.matchConfidence ?? b.aiConfidence ?? -1
+        } else if (sortKey === 'volume') {
+          aVal = parseVolume(a.volume)
+          bVal = parseVolume(b.volume)
+        } else if (sortKey === 'polymarket') {
+          aVal = a.polymarket
+          bVal = b.polymarket
+        } else if (sortKey === 'kalshi') {
+          aVal = a.kalshi
+          bVal = b.kalshi
+        } else if (sortKey === 'endDate') {
+          aVal = a.endDate ? new Date(a.endDate).getTime() : Infinity
+          bVal = b.endDate ? new Date(b.endDate).getTime() : Infinity
+        } else {
+          aVal = a[sortKey]
+          bVal = b[sortKey]
+        }
+        if (sortDir === 'asc') return aVal > bVal ? 1 : -1
+        return aVal < bVal ? 1 : -1
+      })
+  }, [enrichedMarkets, search, confidenceFilter, categoryFilter, sortKey, sortDir])
+
+  const lockedSorts = isPro ? [] : ['polymarket', 'kalshi', 'difference', 'matchConfidence']
 
   function handleSort(key) {
     if (lockedSorts.includes(key)) return
@@ -315,8 +329,7 @@ export default function MarketTable({ initialMarkets, isPro, refreshInterval }) 
     )
   }
 
-  // Free users: show 5 rows that have at least 1¢ edge AND 100% AI confidence, minus dismissed
-  const freeEligible = isPro ? [] : filtered.filter(m => m.edge != null && m.edge >= 1 && (m.aiConfidence ?? 0) >= 70 && !freeDismissed.has(m.question))
+  const freeEligible = isPro ? [] : filtered.filter(m => m.edge != null && m.edge >= 1 && (m.matchConfidence ?? m.aiConfidence ?? 0) >= 40 && !freeDismissed.has(m.question))
   const visibleRows = isPro ? filtered : freeEligible.slice(0, FREE_LIMIT)
   const realBlurredRows = isPro ? [] : freeEligible.slice(FREE_LIMIT)
   const fakeRows = isPro ? [] : FAKE_PREMIUM_ROWS
@@ -329,23 +342,23 @@ export default function MarketTable({ initialMarkets, isPro, refreshInterval }) 
         <input
           type="text"
           className="filter-search"
-          placeholder="Search arbitrage opportunities..."
+          placeholder="Search markets..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
         <select
           className="filter-select"
-          value={aiFilter}
-          onChange={(e) => isPro && setAiFilter(e.target.value)}
+          value={confidenceFilter}
+          onChange={(e) => isPro && setConfidenceFilter(e.target.value)}
           disabled={!isPro}
-          title={!isPro ? 'Upgrade to Pro to filter by AI confidence' : ''}
+          title={!isPro ? 'Upgrade to Pro to filter by confidence' : ''}
           style={!isPro ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
         >
-          <option value="all">All AI confidence</option>
-          <option value="10">AI ≥ 10%</option>
-          <option value="30">AI ≥ 30%</option>
-          <option value="50">AI ≥ 50%</option>
-          <option value="75">AI ≥ 75%</option>
+          <option value="all">All confidence</option>
+          <option value="30">Match ≥ 30%</option>
+          <option value="50">Match ≥ 50%</option>
+          <option value="65">Match ≥ 65%</option>
+          <option value="80">Match ≥ 80%</option>
         </select>
         <div className="stake-input-wrap">
           <label className="stake-label">Stake</label>
@@ -384,6 +397,20 @@ export default function MarketTable({ initialMarkets, isPro, refreshInterval }) 
         </div>
       </div>
 
+      {categories.length > 2 && (
+        <div className="category-chips">
+          {categories.map(cat => (
+            <button
+              key={cat}
+              className={`category-chip ${categoryFilter === cat ? 'category-chip-active' : ''}`}
+              onClick={() => setCategoryFilter(cat)}
+            >
+              {cat === 'all' ? 'All' : cat}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="upgrade-overlay-wrapper">
         <div className="mt-container">
           {/* Header */}
@@ -403,8 +430,8 @@ export default function MarketTable({ initialMarkets, isPro, refreshInterval }) 
             <div className={`mt-col-num ${sortKey === 'totalCost' ? 'mt-sorted' : ''}`} onClick={() => handleSort('totalCost')}>
               Cost {sortArrow('totalCost')}
             </div>
-            <div className={`mt-col-ai ${sortKey === 'aiConfidence' ? 'mt-sorted' : ''} ${lockedSorts.includes('aiConfidence') ? 'mt-locked' : ''}`} onClick={() => handleSort('aiConfidence')}>
-              AI {sortArrow('aiConfidence')}
+            <div className={`mt-col-ai ${sortKey === 'matchConfidence' ? 'mt-sorted' : ''} ${lockedSorts.includes('matchConfidence') ? 'mt-locked' : ''}`} onClick={() => handleSort('matchConfidence')}>
+              Match {sortArrow('matchConfidence')}
             </div>
             <div className={`mt-col-date ${sortKey === 'endDate' ? 'mt-sorted' : ''}`} onClick={() => handleSort('endDate')}>
               Ends {sortArrow('endDate')}
@@ -449,7 +476,11 @@ export default function MarketTable({ initialMarkets, isPro, refreshInterval }) 
               />
             ))}
             {!loading && filtered.length === 0 && (
-              <div className="mt-empty">No arbitrage opportunities found</div>
+              <div className="mt-empty">
+                {search || confidenceFilter !== 'all' || categoryFilter !== 'all'
+                  ? 'No matches for current filters — try broadening your search'
+                  : 'Scanner is warming up — results appear within 30 seconds'}
+              </div>
             )}
           </div>
         </div>
@@ -488,11 +519,12 @@ function MarketRow({ market: m, blurred, isPro, stake = 1000, onVerifyYes, onVer
   const needsVote = !isVerified && !isCommunityRejected && !blurred
   const hasEdge = m.edge != null && m.edge > 0
   const isArbSafe = m.isArbSafe === true
-  const isPossibleMatch = m.aiPossible === true && !isVerified
+  const isPossibleMatch = !isVerified && matchConf >= 30 && matchConf < 45
 
+  const matchConf = m.matchConfidence ?? m.aiConfidence ?? 0
   const edgeClass = !hasEdge
     ? 'spread-unverified'
-    : isArbSafe
+    : (isVerified || matchConf >= 50)
     ? (m.edge >= 5 ? 'spread-high' : m.edge >= 3 ? 'spread-medium' : 'spread-low')
     : 'spread-unverified'
 
@@ -588,9 +620,9 @@ function MarketRow({ market: m, blurred, isPro, stake = 1000, onVerifyYes, onVer
           {m.totalCost != null ? `${m.totalCost}¢` : '—'}
         </div>
 
-        {/* AI */}
+        {/* Match Confidence */}
         <div className="mt-col-ai">
-          <AiConfidenceBadge score={m.aiConfidence} reason={m.aiReason} />
+          <MatchConfidenceBadge score={m.matchConfidence} aiScore={m.aiConfidence} reason={m.matchReason || m.aiReason} />
         </div>
 
         {/* End Date */}
@@ -605,10 +637,12 @@ function MarketRow({ market: m, blurred, isPro, stake = 1000, onVerifyYes, onVer
 
         {/* Profit */}
         <div className="mt-col-profit">
-          {hasEdge && isArbSafe ? (
-            <span className="mt-profit-value">${Math.round(stake * m.edge / 100)}</span>
+          {hasEdge && (isVerified || matchConf >= 45) ? (
+            <span className={`mt-profit-value ${isArbSafe ? '' : 'mt-profit-unconfirmed'}`}>
+              ${Math.round(stake * m.edge / 100)}
+            </span>
           ) : hasEdge ? (
-            <span className="mt-muted" title="Verify match before trading">{m.edge}¢</span>
+            <span className="mt-muted" title="Low confidence — verify before trading">{m.edge}¢</span>
           ) : (
             <span className="mt-muted">—</span>
           )}
@@ -637,19 +671,22 @@ function MarketRow({ market: m, blurred, isPro, stake = 1000, onVerifyYes, onVer
   )
 }
 
-function AiConfidenceBadge({ score, reason }) {
-  if (score == null) {
+function MatchConfidenceBadge({ score, aiScore, reason }) {
+  const display = score ?? aiScore
+  if (display == null) {
     return <span className="ai-badge ai-badge-none">—</span>
   }
 
   let cls
-  if (score >= 90) cls = 'ai-badge-high'
-  else if (score >= 70) cls = 'ai-badge-medium'
+  if (display >= 80) cls = 'ai-badge-high'
+  else if (display >= 50) cls = 'ai-badge-medium'
   else cls = 'ai-badge-low'
 
+  const tooltip = reason || ''
+
   return (
-    <span className={`ai-badge ${cls}`} title={reason || ''}>
-      {score}%
+    <span className={`ai-badge ${cls}`} title={tooltip}>
+      {display}%
     </span>
   )
 }

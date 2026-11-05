@@ -1274,6 +1274,43 @@ html[data-theme="dark"] .dominance-secondary {
   font-variant-numeric: tabular-nums;
 }
 
+.mt-profit-unconfirmed {
+  opacity: 0.65;
+}
+
+/* ── Category Chips ────────────────────────────── */
+
+.category-chips {
+  display: flex;
+  gap: 6px;
+  padding: 0 0 12px;
+  flex-wrap: wrap;
+}
+
+.category-chip {
+  padding: 4px 12px;
+  border-radius: 100px;
+  border: 1px solid var(--glass-border);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.category-chip:hover {
+  border-color: var(--color-brand-bg);
+  color: var(--text-primary);
+}
+
+.category-chip-active {
+  background: var(--color-brand-bg);
+  border-color: var(--color-brand-bg);
+  color: #fff;
+}
+
 /* ── Market Table (Grid Layout) ───────────────── */
 
 .mt-container {
