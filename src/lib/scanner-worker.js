@@ -50,6 +50,15 @@ function formatVolume(vol) {
   return `$${vol.toFixed(0)}`
 }
 
+// Persists progress mid-cycle so a crash that bypasses our own error
+// handling (process-level kill, not a catchable JS exception) still
+// leaves a breadcrumb showing exactly which stage it reached.
+async function checkpoint(stage, extra = {}) {
+  try {
+    await cacheSet(DEBUG_KEY, { stage, at: new Date().toISOString(), ...extra }, CACHE_TTL)
+  } catch {}
+}
+
 function parseVolume(volStr) {
   if (typeof volStr === 'number') return volStr
   if (!volStr || typeof volStr !== 'string') return 0
@@ -122,6 +131,7 @@ async function runCycle() {
     }
 
     console.log(`[scanner-worker] Fetched ${polymarkets.length} Polymarket + ${kalshiMarkets.length} Kalshi markets (${timings.fetchMs}ms)`)
+    await checkpoint('fetch_complete', { polyCount: polymarkets.length, kalshiCount: kalshiMarkets.length, fetchMs: timings.fetchMs })
 
     // ── Explore cache ──
     const exploreMarkets = []
@@ -157,6 +167,7 @@ async function runCycle() {
     }
     exploreMarkets.sort((a, b) => b.volume - a.volume)
     await cacheSet(EXPLORE_KEY, exploreMarkets, EXPLORE_TTL)
+    await checkpoint('explore_cache_complete', { exploreCount: exploreMarkets.length })
 
     // Diagnostic: category distribution per platform. The matcher only
     // ever scores pairs within the same category bucket (plus a limited
@@ -202,11 +213,13 @@ async function runCycle() {
     } catch (err) {
       console.error('[scanner-worker] Whale trades error:', err.message)
     }
+    await checkpoint('whale_trades_complete')
 
     // ── Match (PRODUCTION — old matcher) ─────────────
     const tMatch = Date.now()
     let markets = matchMarkets(polymarkets, kalshiMarkets)
     timings.matchMs = Date.now() - tMatch
+    await checkpoint('match_complete', { matchMs: timings.matchMs, rawMatches: markets.length })
 
     const preFilterCount = markets.length
     const preFilterEdges = markets.map(m => m.edge)
@@ -223,6 +236,7 @@ async function runCycle() {
       return null
     })
     timings.verifyMs = Date.now() - tVerify
+    await checkpoint('verify_complete', { verifyMs: timings.verifyMs })
 
     // ── Post-process ────────────────────────────────
     const tPost = Date.now()
