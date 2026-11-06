@@ -59,9 +59,14 @@ let lastRunTimings = null
 let consecutiveErrors = 0
 let firstCyclePromise = null
 let firstCycleComplete = false
+let lastCycleDebug = null
 
 export function getLastTimings() {
   return lastRunTimings
+}
+
+export function getLastDebug() {
+  return lastCycleDebug
 }
 
 export function isWarming() {
@@ -265,6 +270,15 @@ async function runCycle() {
     lastRunTimings = timings
     consecutiveErrors = 0
     firstCycleComplete = true
+    lastCycleDebug = {
+      polyCount: polymarkets.length,
+      kalshiCount: kalshiMarkets.length,
+      preFilterCount,
+      postEdgeFilter,
+      finalMatches: markets.length,
+      samplePoly: polymarkets.slice(0, 3).map(m => m.question),
+      sampleKalshi: kalshiMarkets.slice(0, 3).map(m => m.question),
+    }
 
     console.log(
       `[scanner-worker] Cycle complete: ${markets.length} results cached ` +
@@ -335,6 +349,7 @@ export async function triggerScan() {
     lastRunMs,
     timings: lastRunTimings,
     consecutiveErrors,
+    debug: lastCycleDebug,
   }
 }
 
