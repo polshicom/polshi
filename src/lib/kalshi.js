@@ -15,8 +15,17 @@ function toProb(val) {
 export async function fetchKalshiMarkets() {
   const allMarkets = []
   let cursor = null
-  // Covers the full 5,000+ open-event universe (30 pages × 200, cursor-paginated).
-  const maxPages = 30
+  // Verified against the live API: Kalshi has ~22,700 open events across
+  // ~114 pages of 200. Critically, cursor order is NOT by relevance —
+  // there's a massive contiguous block of generic down-ballot "Elections"
+  // events (pages ~2-30, ~37-41, ~55-59) sitting between the pages that
+  // actually contain Sports/Financials/Crypto/Economics content (clusters
+  // around pages ~1, ~35-54, ~60+). A low page cap silently fetches
+  // thousands of low-value election sub-markets while cutting off before
+  // ever reaching the categories with real cross-platform overlap — this
+  // was the actual reason Sports/Crypto/Economics never produced any
+  // matches, not a scoring or threshold problem.
+  const maxPages = 130
 
   for (let page = 0; page < maxPages; page++) {
     const params = new URLSearchParams({

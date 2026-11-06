@@ -3,10 +3,12 @@ import { triggerScan } from '../../../../lib/scanner-worker'
 
 // Give Vercel's serverless function a real execution budget — full
 // market coverage (fetch + match + verify) takes longer than the
-// platform default. The matcher now scores a full cross product
-// (~28M pairs, up from ~14M) instead of category-bucketed pairs, so
-// bumped from 120s toward Pro's 300s cap for extra margin.
-export const maxDuration = 200
+// platform default. Kalshi's maxPages went 30→130 (its real event
+// count is ~22,700, not ~13,600) and the matcher scores a full cross
+// product, so total pairs scored roughly doubles again on top of the
+// earlier category-bucketing removal. 280s leaves slim but real
+// margin under Pro's 300s hard cap.
+export const maxDuration = 280
 
 // Scans must be driven by an awaited request with its own execution
 // budget — not by a fire-and-forget call inside a page-load API route,
