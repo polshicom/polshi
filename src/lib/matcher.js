@@ -474,69 +474,35 @@ export function matchMarkets(polymarkets, kalshiMarkets) {
   const polyData = polymarkets.map(m => precompute(m))
   const kalshiData = kalshiMarkets.map(m => precompute(m))
 
-  // Step 2: Index by category
-  const polyByCategory = {}
-  const kalshiByCategory = {}
-
-  for (let i = 0; i < polyData.length; i++) {
-    const cat = polyData[i].category
-    if (!polyByCategory[cat]) polyByCategory[cat] = []
-    polyByCategory[cat].push(i)
+  // Step 2/3: Score every poly×kalshi pair. Categories are informational
+  // (shown in the UI, used by the event-group phase) but NOT a gate on
+  // which pairs get compared — Polymarket and Kalshi each run categorize()
+  // independently on differently-phrased text, so the same real-world
+  // event can land in different buckets on each side. Bucketing by
+  // category would mean that pair is never even scored, which no amount
+  // of signal tuning can fix. The actual disambiguation work (entity,
+  // topic, date, numeric target) already lives in scorePair, so a full
+  // cross product lets those signals do their job on every pair instead
+  // of pre-filtering some of them out before they get a chance.
+  const catCounts = {}
+  for (const d of polyData) {
+    if (!catCounts[d.category]) catCounts[d.category] = { poly: 0, kalshi: 0 }
+    catCounts[d.category].poly++
   }
-
-  for (let i = 0; i < kalshiData.length; i++) {
-    const cat = kalshiData[i].category
-    if (!kalshiByCategory[cat]) kalshiByCategory[cat] = []
-    kalshiByCategory[cat].push(i)
+  for (const d of kalshiData) {
+    if (!catCounts[d.category]) catCounts[d.category] = { poly: 0, kalshi: 0 }
+    catCounts[d.category].kalshi++
   }
+  console.log(`[matcher] Categories: ${Object.entries(catCounts).map(([c, n]) => `${c}(${n.poly}p/${n.kalshi}k)`).join(', ')}`)
 
-  const allCategories = new Set([...Object.keys(polyByCategory), ...Object.keys(kalshiByCategory)])
-  console.log(`[matcher] Categories: ${[...allCategories].map(c => `${c}(${(polyByCategory[c]||[]).length}p/${(kalshiByCategory[c]||[]).length}k)`).join(', ')}`)
-
-  // Step 3: Score pairs within each category
   const candidateMap = new Map()
 
-  for (const cat of allCategories) {
-    const polyIndices = polyByCategory[cat] || []
-    const kalshiIndices = kalshiByCategory[cat] || []
-    if (polyIndices.length === 0 || kalshiIndices.length === 0) continue
-
-    for (const pi of polyIndices) {
-      for (const ki of kalshiIndices) {
-        const result = scorePair(polymarkets[pi], kalshiMarkets[ki], polyData[pi], kalshiData[ki])
-        if (result.score >= MATCH_THRESHOLD) {
-          const key = `${pi}:${ki}`
-          const existing = candidateMap.get(key)
-          if (!existing || result.score > existing.score) {
-            candidateMap.set(key, { pmIdx: pi, kIdx: ki, score: result.score, reason: result.reason, cat })
-          }
-        }
-      }
-    }
-  }
-
-  // Step 4: Cross-category for "Other" and adjacent categories
-  const otherPoly = polyByCategory['Other'] || []
-  const otherKalshi = kalshiByCategory['Other'] || []
-
-  for (const pi of otherPoly) {
+  for (let pi = 0; pi < polymarkets.length; pi++) {
     for (let ki = 0; ki < kalshiMarkets.length; ki++) {
-      const key = `${pi}:${ki}`
-      if (candidateMap.has(key)) continue
       const result = scorePair(polymarkets[pi], kalshiMarkets[ki], polyData[pi], kalshiData[ki])
-      if (result.score >= MATCH_THRESHOLD + 5) {
-        candidateMap.set(key, { pmIdx: pi, kIdx: ki, score: result.score, reason: result.reason, cat: 'cross' })
-      }
-    }
-  }
-
-  for (const ki of otherKalshi) {
-    for (let pi = 0; pi < polymarkets.length; pi++) {
-      const key = `${pi}:${ki}`
-      if (candidateMap.has(key)) continue
-      const result = scorePair(polymarkets[pi], kalshiMarkets[ki], polyData[pi], kalshiData[ki])
-      if (result.score >= MATCH_THRESHOLD + 5) {
-        candidateMap.set(key, { pmIdx: pi, kIdx: ki, score: result.score, reason: result.reason, cat: 'cross' })
+      if (result.score >= MATCH_THRESHOLD) {
+        const key = `${pi}:${ki}`
+        candidateMap.set(key, { pmIdx: pi, kIdx: ki, score: result.score, reason: result.reason, cat: polyData[pi].category })
       }
     }
   }
