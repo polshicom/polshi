@@ -266,6 +266,15 @@ function scorePair(pm, km, pmData, kmData) {
         penalty += 12
         reasons.push('diff subject')
       }
+    } else if (entityOverlap === 0) {
+      // Neither side had a single unambiguous "primary" entity (e.g.
+      // multiple names in one question), but if they share NONE of their
+      // extracted entities at all, that's still real evidence they're
+      // about different things — e.g. "Trump pardon Musk" vs "Ukraine
+      // election" share zero entities and shouldn't coast through on
+      // unrelated signals like a shared "before 2027" deadline.
+      penalty += 10
+      reasons.push('no shared entities')
     }
   }
 

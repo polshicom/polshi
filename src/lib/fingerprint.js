@@ -427,8 +427,13 @@ function extractNumericTarget(text) {
   // Large round numbers in context: "above 100000", "hit 150K"
   const numMatch = text.match(/\b(\d{3,})\s*([KMBkmb])?\b/)
   if (numMatch) {
-    let val = parseFloat(numMatch[1])
     const suffix = (numMatch[2] || '').toUpperCase()
+    // A bare 4-digit number that looks like a year (e.g. "2027") isn't a
+    // magnitude target — it's already captured by yearInText. Treating it
+    // as one causes completely unrelated "before 2027" markets across
+    // different topics to falsely match on "same target".
+    if (!suffix && /^20[2-3]\d$/.test(numMatch[1])) return null
+    let val = parseFloat(numMatch[1])
     if (suffix === 'K') val *= 1_000
     if (suffix === 'M') val *= 1_000_000
     if (suffix === 'B') val *= 1_000_000_000
