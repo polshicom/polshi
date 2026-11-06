@@ -292,6 +292,11 @@ export function ensureWorkerRunning() {
   if (workerRunning) return
   workerRunning = true
 
+  // setInterval only helps on a traditional long-running Node process —
+  // on serverless (Vercel), each invocation can be frozen/killed shortly
+  // after the response is sent, and a cold start resets this module's
+  // state entirely. On that platform, scans must be driven by the
+  // cron route below instead (see triggerScan / api/cron/scan).
   console.log('[scanner-worker] Starting background worker (30s interval)')
   firstCyclePromise = runCycle()
   intervalHandle = setInterval(runCycle, REFRESH_INTERVAL)
@@ -300,6 +305,20 @@ export function ensureWorkerRunning() {
 
 export async function waitForFirstCycle() {
   if (firstCyclePromise) await firstCyclePromise
+}
+
+// Runs one full fetch → match → verify → cache cycle and waits for it to
+// finish. Meant to be called from a route that itself has a guaranteed
+// execution budget (a Vercel Cron invocation, or an external scheduler
+// hitting /api/cron/scan) — unlike ensureWorkerRunning(), the caller here
+// actually awaits completion, so the platform won't kill it mid-fetch.
+export async function triggerScan() {
+  await runCycle()
+  return {
+    lastRunMs,
+    timings: lastRunTimings,
+    consecutiveErrors,
+  }
 }
 
 export { CACHE_KEY, TOP_ARB_KEY, EXPLORE_KEY, STATS_KEY, WHALE_YESTERDAY_KEY, WHALE_TRADES_KEY, COMPARE_KEY }
