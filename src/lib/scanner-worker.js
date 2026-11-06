@@ -87,16 +87,21 @@ async function runCycle() {
   const t0 = Date.now()
   const timings = { fetchMs: 0, matchMs: 0, verifyMs: 0, postProcessMs: 0, totalMs: 0 }
 
+  let polyFetchError = null
+  let kalshiFetchError = null
+
   try {
     // ── Fetch ────────────────────────────────────────
     const tFetch = Date.now()
     const [polymarkets, kalshiMarkets] = await Promise.all([
       fetchPolymarketMarkets().catch((err) => {
         console.error('[scanner-worker] Polymarket fetch error:', err.message)
+        polyFetchError = err.message
         return []
       }),
       fetchKalshiMarkets().catch((err) => {
         console.error('[scanner-worker] Kalshi fetch error:', err.message)
+        kalshiFetchError = err.message
         return []
       }),
     ])
@@ -104,6 +109,7 @@ async function runCycle() {
 
     if (polymarkets.length === 0 && kalshiMarkets.length === 0) {
       console.warn('[scanner-worker] Both APIs returned empty — skipping cycle')
+      lastCycleDebug = { polyCount: 0, kalshiCount: 0, polyFetchError, kalshiFetchError, skipped: 'both empty' }
       return
     }
 
@@ -273,6 +279,8 @@ async function runCycle() {
     lastCycleDebug = {
       polyCount: polymarkets.length,
       kalshiCount: kalshiMarkets.length,
+      polyFetchError,
+      kalshiFetchError,
       preFilterCount,
       postEdgeFilter,
       finalMatches: markets.length,
