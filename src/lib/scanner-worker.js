@@ -166,16 +166,17 @@ async function runCycle() {
       })
     }
     exploreMarkets.sort((a, b) => b.volume - a.volume)
-    await cacheSet(EXPLORE_KEY, exploreMarkets, EXPLORE_TTL)
-    await checkpoint('explore_cache_complete', { exploreCount: exploreMarkets.length })
+    // Cap what actually gets persisted — Kalshi's fetch now covers its
+    // full ~22,700-event universe, and caching every single one here
+    // (several MB, written roughly every minute) was adding real strain
+    // to Supabase on top of everything else. The Explore page only ever
+    // shows markets sorted/filtered by volume anyway, so the long tail
+    // past the top few thousand by volume isn't materially useful to cut.
+    const EXPLORE_CACHE_CAP = 4000
+    await cacheSet(EXPLORE_KEY, exploreMarkets.slice(0, EXPLORE_CACHE_CAP), EXPLORE_TTL)
 
-    // Diagnostic: category distribution per platform. The matcher only
-    // ever scores pairs within the same category bucket (plus a limited
-    // cross-category fallback for "Other"), so if the two platforms'
-    // independent categorize() calls disagree systematically on the same
-    // real-world events, that alone could be silently capping match
-    // count — no amount of scoring-signal tuning fixes a pair that's
-    // never compared in the first place.
+    // Diagnostic: category distribution per platform (all fetched
+    // markets, not just the capped explore cache).
     const categoryBreakdown = {}
     for (const m of exploreMarkets) {
       if (!categoryBreakdown[m.category]) categoryBreakdown[m.category] = { poly: 0, kalshi: 0 }
@@ -213,7 +214,6 @@ async function runCycle() {
     } catch (err) {
       console.error('[scanner-worker] Whale trades error:', err.message)
     }
-    await checkpoint('whale_trades_complete')
 
     // ── Match (PRODUCTION — old matcher) ─────────────
     const tMatch = Date.now()
@@ -236,7 +236,6 @@ async function runCycle() {
       return null
     })
     timings.verifyMs = Date.now() - tVerify
-    await checkpoint('verify_complete', { verifyMs: timings.verifyMs })
 
     // ── Post-process ────────────────────────────────
     const tPost = Date.now()
