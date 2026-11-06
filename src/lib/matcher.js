@@ -279,13 +279,25 @@ function scorePair(pm, km, pmData, kmData) {
   }
 
   // Signal 4: Topic match from fingerprints
-  if (pmFp.topic && kmFp.topic && pmFp.topic !== 'generic_unknown' && kmFp.topic !== 'generic_unknown') {
+  const pmHasTopic = pmFp.topic && pmFp.topic !== 'generic_unknown'
+  const kmHasTopic = kmFp.topic && kmFp.topic !== 'generic_unknown'
+  if (pmHasTopic && kmHasTopic) {
     if (pmFp.topic === kmFp.topic) { bonus += 8; reasons.push('same topic') }
     else { penalty += 5; reasons.push('diff topic') }
+  } else if (pmHasTopic !== kmHasTopic) {
+    // One side has a classifiable topic (e.g. "bankruptcy") and the other
+    // doesn't (an oddly-phrased market like "Best LLM at the end of the
+    // decade?") — we can't confirm they're about the same thing, which is
+    // itself mild evidence they aren't. Without this, such pairs coasted
+    // through on unrelated signals like a shared resolution date.
+    penalty += 6
+    reasons.push('topic unclear on one side')
   }
 
   // Signal 5: Action match
-  if (pmFp.action && kmFp.action && pmFp.action !== 'unknown' && kmFp.action !== 'unknown') {
+  const pmHasAction = pmFp.action && pmFp.action !== 'unknown'
+  const kmHasAction = kmFp.action && kmFp.action !== 'unknown'
+  if (pmHasAction && kmHasAction) {
     if (pmFp.action === kmFp.action) { bonus += 5; reasons.push('same action') }
     else if (
       (pmFp.action === 'above' && kmFp.action === 'reach') ||
@@ -295,7 +307,13 @@ function scorePair(pm, km, pmData, kmData) {
     ) {
       bonus += 3
       reasons.push('similar action')
+    } else {
+      penalty += 8
+      reasons.push('diff action')
     }
+  } else if (pmHasAction !== kmHasAction) {
+    penalty += 4
+    reasons.push('action unclear on one side')
   }
 
   // Signal 6: Scope match (tournament vs group vs match)
