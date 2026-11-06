@@ -3,9 +3,9 @@ import { triggerScan } from '../../../../lib/scanner-worker'
 
 // Give Vercel's serverless function a real execution budget — full
 // market coverage (fetch + match + verify) takes longer than the
-// platform default. 60s fits comfortably within Hobby and Pro limits;
-// raise it if your plan allows and cycles start running close to it.
-export const maxDuration = 60
+// platform default. Pro allows up to 300s; 120s leaves comfortable
+// margin over the typical cycle time without eating into that cap.
+export const maxDuration = 120
 
 // Scans must be driven by an awaited request with its own execution
 // budget — not by a fire-and-forget call inside a page-load API route,
