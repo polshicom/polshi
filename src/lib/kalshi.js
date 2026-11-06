@@ -15,7 +15,8 @@ function toProb(val) {
 export async function fetchKalshiMarkets() {
   const allMarkets = []
   let cursor = null
-  const maxPages = 10
+  // Covers the full 5,000+ open-event universe (30 pages × 200, cursor-paginated).
+  const maxPages = 30
 
   for (let page = 0; page < maxPages; page++) {
     const params = new URLSearchParams({
@@ -110,6 +111,10 @@ export async function fetchKalshiMarkets() {
           yesSubTitle: subTitle,
           url,
           source: 'kalshi',
+          // Event grouping — lets the matcher match multi-outcome events
+          // (e.g. "NBA Finals Winner") before matching individual teams/candidates.
+          eventKey: isMultiMarket ? eventTicker : null,
+          eventTitle: isMultiMarket ? (event.title || null) : null,
           _eventTitle: event.title || '',
           _eventTicker: eventTicker,
           _raw: { bid: rawBid, ask: rawAsk, last: rawLast, ticker: mkt.ticker },

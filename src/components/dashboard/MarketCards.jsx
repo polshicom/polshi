@@ -1,6 +1,22 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+
+// Best-effort label for a market within an event group — e.g. pull
+// "Bernie Sanders" out of "Will Bernie Sanders win the 2028 Democratic
+// presidential nomination?" so grouped cards can show just the outcome
+// name instead of repeating the whole question each time.
+function extractOutcomeLabel(question, eventTitle) {
+  const eventWords = new Set((eventTitle || '').toLowerCase().split(/\s+/))
+  const nameMatch = question.match(/\b([A-Z][a-zA-Z.]*(?:\s+[A-Z][a-zA-Z.]*)+)\b/)
+  if (nameMatch) {
+    const candidate = nameMatch[1]
+    const candidateWords = candidate.toLowerCase().split(/\s+/)
+    // Skip if the "name" we grabbed is actually just words from the event title
+    if (!candidateWords.every(w => eventWords.has(w))) return candidate
+  }
+  return question.length > 50 ? question.slice(0, 50) + '…' : question
+}
 
 function formatEndDate(dateStr) {
   if (!dateStr) return null
@@ -47,6 +63,33 @@ export default function MarketCards({ initialMarkets, categories: initialCategor
     return () => clearTimeout(timeout)
   }, [fetchMarkets])
 
+  // Group matches that belong to the same multi-outcome event (e.g. all the
+  // candidates in "Democratic Presidential Nominee 2028") so they display
+  // as one unit instead of N separate, hard-to-compare cards.
+  const { groups, standalone } = useMemo(() => {
+    const byEvent = new Map()
+    const singles = []
+    for (const m of markets) {
+      if (!m.eventTitle) {
+        singles.push(m)
+        continue
+      }
+      if (!byEvent.has(m.eventTitle)) byEvent.set(m.eventTitle, [])
+      byEvent.get(m.eventTitle).push(m)
+    }
+    const groupList = []
+    for (const [title, members] of byEvent) {
+      if (members.length < 2) {
+        singles.push(members[0])
+        continue
+      }
+      members.sort((a, b) => (b.edge || 0) - (a.edge || 0))
+      groupList.push({ title, members })
+    }
+    groupList.sort((a, b) => (b.members[0]?.edge || 0) - (a.members[0]?.edge || 0))
+    return { groups: groupList, standalone: singles }
+  }, [markets])
+
   return (
     <>
       <div className="explore-filters">
@@ -82,8 +125,12 @@ export default function MarketCards({ initialMarkets, categories: initialCategor
         {loading ? 'Loading...' : `${markets.length} matched markets`}
       </div>
 
+      {groups.map((g, i) => (
+        <EventGroupCard key={`group-${i}`} title={g.title} members={g.members} />
+      ))}
+
       <div className="explore-grid">
-        {markets.map((m, i) => (
+        {standalone.map((m, i) => (
           <MatchedMarketCard key={i} market={m} />
         ))}
         {!loading && markets.length === 0 && (
@@ -91,6 +138,62 @@ export default function MarketCards({ initialMarkets, categories: initialCategor
         )}
       </div>
     </>
+  )
+}
+
+function EventGroupCard({ title, members }) {
+  const [expanded, setExpanded] = useState(true)
+  const bestEdge = members[0]?.edge || 0
+
+  return (
+    <div className="explore-event-group">
+      <button className="explore-event-group-header" onClick={() => setExpanded(e => !e)}>
+        <div className="explore-event-group-title-wrap">
+          <span className="explore-event-group-title">{title}</span>
+          <span className="explore-event-group-count">{members.length} outcomes</span>
+        </div>
+        <div className="explore-event-group-meta">
+          {bestEdge > 0 && <span className="explore-event-group-best">Best spread {bestEdge}¢</span>}
+          <svg className={`explore-event-group-chevron ${expanded ? 'open' : ''}`} width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </div>
+      </button>
+      {expanded && (
+        <div className="explore-event-group-body">
+          {members.map((m, i) => (
+            <EventGroupRow key={i} market={m} eventTitle={title} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function EventGroupRow({ market: m, eventTitle }) {
+  const label = extractOutcomeLabel(m.question, eventTitle)
+  const hasEdge = m.edge != null && m.edge > 0
+
+  return (
+    <div className="explore-event-group-row" title={m.question}>
+      <span className="explore-event-group-row-label">{label}</span>
+      <div className="explore-event-group-row-prices">
+        <span className="badge-poly-text">{m.polymarket}¢</span>
+        <span className="explore-event-group-row-sep">vs</span>
+        <span className="badge-kalshi-text">{m.kalshi}¢</span>
+      </div>
+      <span className={`explore-event-group-row-edge ${hasEdge ? 'has-edge' : ''}`}>
+        {hasEdge ? `${m.edge}¢` : '—'}
+      </span>
+      <div className="explore-event-group-row-links">
+        {m.polymarketUrl && (
+          <a href={m.polymarketUrl} target="_blank" rel="noopener noreferrer" className="explore-link badge-poly-text">↗</a>
+        )}
+        {m.kalshiUrl && (
+          <a href={m.kalshiUrl} target="_blank" rel="noopener noreferrer" className="explore-link badge-kalshi-text">↗</a>
+        )}
+      </div>
+    </div>
   )
 }
 

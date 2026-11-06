@@ -113,6 +113,110 @@ function precompute(market) {
   }
 }
 
+// ── Event-Group Matching ─────────────────────────────
+// Many markets belong to a multi-outcome event (e.g. Polymarket's
+// "Presidential Election Winner 2028" or Kalshi's "NBA Finals Winner",
+// each containing one binary market per candidate/team). Matching the
+// *event* first — before comparing individual outcomes — means we only
+// ever compare candidates/teams from the same event, instead of every
+// candidate against every candidate across the whole platform. That
+// gives both better precision (no cross-event false positives) and
+// better recall (a context-confirmed match can clear a lower bar).
+//
+// This phase is purely additive: it feeds extra high-confidence
+// candidates into the same candidateMap used by the category-based
+// pass, so it can only add matches, never remove ones the fallback
+// logic would otherwise have found.
+
+const EVENT_MATCH_THRESHOLD = 25
+const EVENT_CONTEXT_BONUS = 15
+
+function groupIndicesByEvent(markets) {
+  const groups = new Map()
+  for (let i = 0; i < markets.length; i++) {
+    const key = markets[i].eventKey
+    if (key == null) continue
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key).push(i)
+  }
+  // Only multi-outcome events are useful here — a group of one is just
+  // a standalone market, already covered by the category-based pass.
+  for (const [key, idxs] of groups) {
+    if (idxs.length < 2) groups.delete(key)
+  }
+  return groups
+}
+
+function eventSynthetic(markets, idxs) {
+  const title = markets[idxs[0]].eventTitle || markets[idxs[0]].question
+  return { question: title, description: '', endDate: null }
+}
+
+function addEventGroupCandidates(polymarkets, kalshiMarkets, polyData, kalshiData, candidateMap) {
+  const polyGroups = groupIndicesByEvent(polymarkets)
+  const kalshiGroups = groupIndicesByEvent(kalshiMarkets)
+  if (polyGroups.size === 0 || kalshiGroups.size === 0) return
+
+  const polyEvents = [...polyGroups.entries()].map(([key, idxs]) => {
+    const synth = eventSynthetic(polymarkets, idxs)
+    return { key, idxs, synth, data: precompute(synth) }
+  })
+  const kalshiEvents = [...kalshiGroups.entries()].map(([key, idxs]) => {
+    const synth = eventSynthetic(kalshiMarkets, idxs)
+    return { key, idxs, synth, data: precompute(synth) }
+  })
+
+  // Score every event-pair (small N — cheap even as a full cross product)
+  const eventCandidates = []
+  for (const pe of polyEvents) {
+    for (const ke of kalshiEvents) {
+      const result = scorePair(pe.synth, ke.synth, pe.data, ke.data)
+      if (result.score >= EVENT_MATCH_THRESHOLD) {
+        eventCandidates.push({ pe, ke, score: result.score })
+      }
+    }
+  }
+
+  // Greedy 1:1 event assignment — best score wins
+  eventCandidates.sort((a, b) => b.score - a.score)
+  const usedPolyEvents = new Set()
+  const usedKalshiEvents = new Set()
+  const matchedEventPairs = []
+  for (const c of eventCandidates) {
+    if (usedPolyEvents.has(c.pe.key) || usedKalshiEvents.has(c.ke.key)) continue
+    usedPolyEvents.add(c.pe.key)
+    usedKalshiEvents.add(c.ke.key)
+    matchedEventPairs.push(c)
+  }
+
+  console.log(`[matcher] Event groups: ${polyEvents.length} poly × ${kalshiEvents.length} kalshi → ${matchedEventPairs.length} event matches`)
+
+  // Within each matched event pair, compare every outcome combination.
+  // We already know the surrounding context matches, so boost the score
+  // and let a slightly weaker text match still clear the bar.
+  for (const { pe, ke } of matchedEventPairs) {
+    for (const pi of pe.idxs) {
+      for (const ki of ke.idxs) {
+        const result = scorePair(polymarkets[pi], kalshiMarkets[ki], polyData[pi], kalshiData[ki])
+        const boosted = Math.min(100, result.score + EVENT_CONTEXT_BONUS)
+        if (boosted < MATCH_THRESHOLD) continue
+        const key = `${pi}:${ki}`
+        const existing = candidateMap.get(key)
+        if (!existing || boosted > existing.score) {
+          candidateMap.set(key, {
+            pmIdx: pi,
+            kIdx: ki,
+            score: boosted,
+            reason: `${result.reason} [event: "${pe.synth.question}" ↔ "${ke.synth.question}", +${EVENT_CONTEXT_BONUS}]`,
+            cat: polyData[pi].category,
+            eventTitle: pe.synth.question,
+          })
+        }
+      }
+    }
+  }
+}
+
 // ── Pair Scoring (multi-signal) ─────────────────────
 // Uses pre-computed keywords, bigrams, and fingerprints.
 
@@ -246,7 +350,7 @@ function scorePair(pm, km, pmData, kmData) {
 
 // ── Build Match Entry ────────────────────────────────
 
-function buildMatch(pm, km, score, reason, pmCategory) {
+function buildMatch(pm, km, score, reason, pmCategory, eventTitle) {
   const pmProb = pm.prob
   const kProb = km.prob
   const pmCents = probToCents(pmProb)
@@ -270,6 +374,7 @@ function buildMatch(pm, km, score, reason, pmCategory) {
   return {
     question: pm.question,
     category: pmCategory || categorize(pm.question),
+    eventTitle: eventTitle || null,
     polymarket: pmCents,
     kalshi: kCents,
     edge: edgeCents,
@@ -377,6 +482,11 @@ export function matchMarkets(polymarkets, kalshiMarkets) {
     }
   }
 
+  // Step 4.5: Event-group matching — match multi-outcome events (e.g.
+  // "NBA Finals Winner") first, then compare only the outcomes within
+  // matched event pairs. Purely additive — can only add candidates.
+  addEventGroupCandidates(polymarkets, kalshiMarkets, polyData, kalshiData, candidateMap)
+
   // Step 5: Greedy 1:1 assignment — best score wins, tiebreak by edge potential
   const candidates = [...candidateMap.values()]
   candidates.sort((a, b) => {
@@ -394,7 +504,7 @@ export function matchMarkets(polymarkets, kalshiMarkets) {
     if (usedPoly.has(c.pmIdx) || usedKalshi.has(c.kIdx)) continue
     usedPoly.add(c.pmIdx)
     usedKalshi.add(c.kIdx)
-    matches.push(buildMatch(polymarkets[c.pmIdx], kalshiMarkets[c.kIdx], c.score, c.reason, polyData[c.pmIdx].category))
+    matches.push(buildMatch(polymarkets[c.pmIdx], kalshiMarkets[c.kIdx], c.score, c.reason, polyData[c.pmIdx].category, c.eventTitle))
   }
 
   // Sort: high-confidence high-edge first

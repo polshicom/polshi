@@ -66,7 +66,17 @@ export function isWarming() {
   return workerRunning && !firstCycleComplete
 }
 
+let cycleInFlight = false
+
 async function runCycle() {
+  // Full market coverage means a cycle can occasionally run long —
+  // skip overlapping runs rather than racing two cycles on the same cache keys.
+  if (cycleInFlight) {
+    console.warn('[scanner-worker] Previous cycle still running — skipping this tick')
+    return
+  }
+  cycleInFlight = true
+
   const t0 = Date.now()
   const timings = { fetchMs: 0, matchMs: 0, verifyMs: 0, postProcessMs: 0, totalMs: 0 }
 
@@ -273,6 +283,8 @@ async function runCycle() {
     timings.totalMs = Date.now() - t0
     lastRunTimings = timings
     console.error(`[scanner-worker] Cycle failed (attempt ${consecutiveErrors}):`, err.message)
+  } finally {
+    cycleInFlight = false
   }
 }
 

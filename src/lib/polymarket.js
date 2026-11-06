@@ -18,32 +18,45 @@ function parseJsonField(val) {
   return null
 }
 
+async function fetchPage(page, pageSize) {
+  const params = new URLSearchParams({
+    active: 'true',
+    closed: 'false',
+    limit: String(pageSize),
+    offset: String(page * pageSize),
+    order: 'volumeNum',
+    ascending: 'false',
+  })
+
+  const res = await fetch(`${GAMMA_URL}?${params}`, {
+    cache: 'no-store',
+  })
+
+  if (!res.ok) throw new Error(`Polymarket API error: ${res.status}`)
+  const data = await res.json()
+  return Array.isArray(data) ? data : []
+}
+
 export async function fetchPolymarketMarkets() {
-  // Fetch multiple pages to get broader coverage (including sports, crypto, etc.)
-  const allData = []
+  // Offset-based pagination is stateless, so pages can be fetched concurrently.
+  // Covers the full ~2,100 active market universe (22 pages × 100).
   const pageSize = 100
-  const maxPages = 10
+  const maxPages = 22
+  const batchSize = 6
 
-  for (let page = 0; page < maxPages; page++) {
-    const params = new URLSearchParams({
-      active: 'true',
-      closed: 'false',
-      limit: String(pageSize),
-      offset: String(page * pageSize),
-      order: 'volumeNum',
-      ascending: 'false',
-    })
-
-    const res = await fetch(`${GAMMA_URL}?${params}`, {
-      cache: 'no-store',
-    })
-
-    if (!res.ok) throw new Error(`Polymarket API error: ${res.status}`)
-
-    const data = await res.json()
-    if (!Array.isArray(data) || data.length === 0) break
-    allData.push(...data)
-    if (data.length < pageSize) break
+  const allData = []
+  for (let batchStart = 0; batchStart < maxPages; batchStart += batchSize) {
+    const batchPages = []
+    for (let p = batchStart; p < Math.min(batchStart + batchSize, maxPages); p++) {
+      batchPages.push(p)
+    }
+    const results = await Promise.all(batchPages.map(p => fetchPage(p, pageSize)))
+    let hitEnd = false
+    for (const data of results) {
+      allData.push(...data)
+      if (data.length < pageSize) hitEnd = true
+    }
+    if (hitEnd) break
   }
 
   const results = []
@@ -103,7 +116,8 @@ export async function fetchPolymarketMarkets() {
 
     // Use event slug for URL (works for both standalone and group markets)
     const evts = m.events || []
-    const eventSlug = evts.length > 0 ? (evts[0].slug || '') : ''
+    const event = evts.length > 0 ? evts[0] : null
+    const eventSlug = event?.slug || ''
     const slug = eventSlug || m.slug || ''
     const url = slug ? `https://polymarket.com/event/${slug}` : null
 
@@ -119,6 +133,10 @@ export async function fetchPolymarketMarkets() {
       description: m.description || '',
       url,
       source: 'polymarket',
+      // Event grouping — lets the matcher match multi-outcome events
+      // (e.g. "Presidential Election Winner 2028") before matching candidates.
+      eventKey: event?.id || null,
+      eventTitle: event?.title || null,
       _raw: {
         bid: rawBid,
         ask: rawAsk,
