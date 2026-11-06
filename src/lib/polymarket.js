@@ -32,7 +32,7 @@ async function fetchPage(page, pageSize) {
     cache: 'no-store',
   })
 
-  if (!res.ok) throw new Error(`Polymarket API error: ${res.status}`)
+  if (!res.ok) throw new Error(`Polymarket API error: ${res.status} (offset ${page * pageSize})`)
   const data = await res.json()
   return Array.isArray(data) ? data : []
 }
@@ -50,13 +50,28 @@ export async function fetchPolymarketMarkets() {
     for (let p = batchStart; p < Math.min(batchStart + batchSize, maxPages); p++) {
       batchPages.push(p)
     }
-    const results = await Promise.all(batchPages.map(p => fetchPage(p, pageSize)))
+    // Settle each page independently — one rate-limited/flaky page shouldn't
+    // zero out every other page's results via Promise.all's fail-fast behavior.
+    const results = await Promise.allSettled(batchPages.map(p => fetchPage(p, pageSize)))
     let hitEnd = false
-    for (const data of results) {
-      allData.push(...data)
-      if (data.length < pageSize) hitEnd = true
+    let batchHadSuccess = false
+    for (const result of results) {
+      if (result.status === 'rejected') {
+        console.error('[polymarket] Page fetch failed:', result.reason?.message)
+        continue
+      }
+      batchHadSuccess = true
+      allData.push(...result.value)
+      if (result.value.length < pageSize) hitEnd = true
     }
+    // If an entire batch failed outright, stop rather than looping through
+    // more pages that will likely fail the same way (e.g. a rate limit).
+    if (!batchHadSuccess) break
     if (hitEnd) break
+
+    // Small courtesy gap between batches of 6 concurrent requests —
+    // reduces the odds of tripping a burst rate limit on the next batch.
+    await new Promise(r => setTimeout(r, 200))
   }
 
   const results = []

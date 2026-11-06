@@ -26,11 +26,26 @@ export async function fetchKalshiMarkets() {
     })
     if (cursor) params.set('cursor', cursor)
 
-    const res = await fetch(`${KALSHI_EVENTS_URL}?${params}`, {
-      cache: 'no-store',
-    })
+    let res
+    try {
+      res = await fetch(`${KALSHI_EVENTS_URL}?${params}`, { cache: 'no-store' })
+    } catch (err) {
+      console.error(`[kalshi] Network error on page ${page}:`, err.message)
+      break
+    }
 
-    if (!res.ok) throw new Error(`Kalshi API error: ${res.status}`)
+    if (res.status === 429) {
+      // Rate limited — brief backoff and one retry. A page that still
+      // fails after that just ends pagination here; returning the
+      // markets already collected beats throwing them all away.
+      await new Promise(r => setTimeout(r, 1500))
+      res = await fetch(`${KALSHI_EVENTS_URL}?${params}`, { cache: 'no-store' }).catch(() => null)
+    }
+
+    if (!res || !res.ok) {
+      console.error(`[kalshi] Page ${page} failed (${res?.status ?? 'network error'}) — stopping pagination with ${allMarkets.length} markets collected so far`)
+      break
+    }
 
     const data = await res.json()
     const events = data.events || []
@@ -124,6 +139,11 @@ export async function fetchKalshiMarkets() {
 
     cursor = data.cursor
     if (!cursor || events.length < 200) break
+
+    // Small courtesy delay between pages — 30 sequential requests back to
+    // back is enough to trip Kalshi's rate limit under load. We have a
+    // generous time budget (the cron route's maxDuration), so this is cheap.
+    await new Promise(r => setTimeout(r, 150))
   }
 
   return allMarkets
