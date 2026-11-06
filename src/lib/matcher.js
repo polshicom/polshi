@@ -546,6 +546,20 @@ export function matchMarkets(polymarkets, kalshiMarkets) {
   // matched event pairs. Purely additive — can only add candidates.
   addEventGroupCandidates(polymarkets, kalshiMarkets, polyData, kalshiData, candidateMap)
 
+  // Diagnostic: candidate count per category, before greedy assignment
+  // collapses them down to 1:1. Shows whether low final match count is
+  // from candidates being scarce in the first place, or from many
+  // candidates existing but concentrating on a small set of indices
+  // that greedy assignment can only resolve to one match each.
+  if (matchStats) {
+    matchStats.candidatesByCategory = {}
+    for (const c of candidateMap.values()) {
+      matchStats.candidatesByCategory[c.cat] = (matchStats.candidatesByCategory[c.cat] || 0) + 1
+    }
+    matchStats.uniquePolyInCandidates = new Set([...candidateMap.values()].map(c => c.pmIdx)).size
+    matchStats.uniqueKalshiInCandidates = new Set([...candidateMap.values()].map(c => c.kIdx)).size
+  }
+
   // Step 5: Greedy 1:1 assignment — best score wins, tiebreak by edge potential
   const candidates = [...candidateMap.values()]
   candidates.sort((a, b) => {
