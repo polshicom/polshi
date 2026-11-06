@@ -559,9 +559,8 @@ function MarketRow({ market: m, blurred, isPro, stake = 1000, onVerifyYes, onVer
   const needsVote = !isVerified && !isCommunityRejected && !blurred
   const hasEdge = m.edge != null && m.edge > 0
   const isArbSafe = m.isArbSafe === true
-  const isPossibleMatch = !isVerified && matchConf >= 30 && matchConf < 45
-
   const matchConf = m.matchConfidence ?? m.aiConfidence ?? 0
+  const isPossibleMatch = !isVerified && matchConf >= 30 && matchConf < 45
   const edgeClass = !hasEdge
     ? 'spread-unverified'
     : (isVerified || matchConf >= 50)
