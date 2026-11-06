@@ -26,6 +26,7 @@ const WHALE_YESTERDAY_KEY = 'whale_yesterday'
 const WHALE_TRADES_KEY = 'whale_trades'
 const COMPARE_KEY = 'pipeline_comparison'
 const SHADOW_LAST_RUN_KEY = 'shadow_pipeline_last_run'
+const DEBUG_KEY = 'last_cycle_debug'
 const CACHE_TTL = 120_000
 const TOP_ARB_TTL = 900_000
 const EXPLORE_TTL = 120_000
@@ -321,6 +322,10 @@ async function runCycle() {
       samplePoly: polymarkets.slice(0, 3).map(m => m.question),
       sampleKalshi: kalshiMarkets.slice(0, 3).map(m => m.question),
     }
+    // Persisted so it's readable from any instance, not just the one
+    // that happened to run this cycle — the cron fires independently of
+    // any request that might want to inspect what it found.
+    await cacheSet(DEBUG_KEY, lastCycleDebug, CACHE_TTL)
 
     console.log(
       `[scanner-worker] Cycle complete: ${markets.length} results cached ` +

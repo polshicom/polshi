@@ -18,6 +18,7 @@ const PERSIST_KEYS = new Set([
   'whale_trades',
   'pipeline_comparison',
   'shadow_pipeline_last_run',
+  'last_cycle_debug',
 ])
 
 // A slow/overloaded Supabase shouldn't be able to hang an entire API
