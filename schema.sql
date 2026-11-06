@@ -90,6 +90,21 @@ create table if not exists match_cache (
   created_at timestamptz default now()
 );
 
+-- ── Scan Cache (shared across serverless instances) ──
+-- The scanner worker runs in a Vercel Cron invocation that may land on
+-- a different lambda instance than the one serving a page request, so
+-- an in-memory or local-disk cache doesn't carry over. This table is
+-- the actual shared store; cache.js keeps an in-memory copy per
+-- instance on top of it just to avoid a DB round-trip on every read.
+create table if not exists scan_cache (
+  key text primary key,
+  value jsonb not null,
+  created_at timestamptz not null default now(),
+  expires_at timestamptz not null
+);
+
+create index if not exists idx_scan_cache_expires on scan_cache(expires_at);
+
 -- ── Indexes ───────────────────────────────────────
 
 create index if not exists idx_accounts_user on accounts("userId");

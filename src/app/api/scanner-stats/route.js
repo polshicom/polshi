@@ -5,7 +5,7 @@ import { ensureWorkerRunning, STATS_KEY } from '../../../lib/scanner-worker'
 export async function GET() {
   ensureWorkerRunning()
 
-  const cached = cacheGetWithMeta(STATS_KEY)
+  const cached = await cacheGetWithMeta(STATS_KEY)
   const stats = cached.value || { scanned: 0, matchedCount: 0, arbCount: 0, totalEdge: 0 }
 
   return NextResponse.json({

@@ -135,35 +135,39 @@ async function runCycle() {
       })
     }
     exploreMarkets.sort((a, b) => b.volume - a.volume)
-    cacheSet(EXPLORE_KEY, exploreMarkets, EXPLORE_TTL)
+    await cacheSet(EXPLORE_KEY, exploreMarkets, EXPLORE_TTL)
 
-    // ── Whale trades ──
-    fetchAllTrades()
-      .then(trades => {
-        const notable = trades.filter(t => t.whaleScore >= 30 || t.dollarValue >= 100)
-        const existing = cacheGetWithMeta(WHALE_TRADES_KEY).value || []
-        const merged = [...notable, ...existing]
-        const seen = new Set()
-        const deduped = []
-        for (const t of merged) {
-          const key = `${t.time}|${t.platform}|${t.market}|${t.dollarValue}`
-          if (!seen.has(key)) {
-            seen.add(key)
-            deduped.push(t)
-          }
+    // ── Whale trades ── (awaited: cheap, and user-facing on the Whales
+    // page — an unawaited promise here risks getting killed mid-write
+    // the same way the old fire-and-forget worker did)
+    try {
+      const trades = await fetchAllTrades()
+      const notable = trades.filter(t => t.whaleScore >= 30 || t.dollarValue >= 100)
+      const existingMeta = await cacheGetWithMeta(WHALE_TRADES_KEY)
+      const existing = existingMeta.value || []
+      const merged = [...notable, ...existing]
+      const seen = new Set()
+      const deduped = []
+      for (const t of merged) {
+        const key = `${t.time}|${t.platform}|${t.market}|${t.dollarValue}`
+        if (!seen.has(key)) {
+          seen.add(key)
+          deduped.push(t)
         }
-        const cutoff = Date.now() - 24 * 60 * 60 * 1000
-        const fresh = deduped
-          .filter(t => new Date(t.time).getTime() > cutoff)
-          .sort((a, b) => new Date(b.time) - new Date(a.time))
-          .slice(0, 500)
-        cacheSet(WHALE_TRADES_KEY, fresh, WHALE_TRADES_TTL)
-        if (fresh.length > 0) {
-          const top = fresh.reduce((best, t) => t.dollarValue > best.dollarValue ? t : best, fresh[0])
-          cacheSet(WHALE_YESTERDAY_KEY, top, WHALE_YESTERDAY_TTL)
-        }
-      })
-      .catch(err => console.error('[scanner-worker] Whale trades error:', err.message))
+      }
+      const cutoff = Date.now() - 24 * 60 * 60 * 1000
+      const fresh = deduped
+        .filter(t => new Date(t.time).getTime() > cutoff)
+        .sort((a, b) => new Date(b.time) - new Date(a.time))
+        .slice(0, 500)
+      await cacheSet(WHALE_TRADES_KEY, fresh, WHALE_TRADES_TTL)
+      if (fresh.length > 0) {
+        const top = fresh.reduce((best, t) => t.dollarValue > best.dollarValue ? t : best, fresh[0])
+        await cacheSet(WHALE_YESTERDAY_KEY, top, WHALE_YESTERDAY_TTL)
+      }
+    } catch (err) {
+      console.error('[scanner-worker] Whale trades error:', err.message)
+    }
 
     // ── Match (PRODUCTION — old matcher) ─────────────
     const tMatch = Date.now()
@@ -216,14 +220,14 @@ async function runCycle() {
     timings.totalMs = Date.now() - t0
 
     // ── Cache for API (PRODUCTION) ───────────────────
-    cacheSet(CACHE_KEY, markets, CACHE_TTL)
+    await cacheSet(CACHE_KEY, markets, CACHE_TTL)
 
     // ── Top Arb ─────────────────────────────────────
     const highConfArbs = markets.filter(m => m.edge > 0 && m.matchConfidence >= 40)
     highConfArbs.sort((a, b) => b.edge - a.edge)
     const bestArb = highConfArbs[0] || null
     if (bestArb) {
-      cacheSet(TOP_ARB_KEY, {
+      await cacheSet(TOP_ARB_KEY, {
         question: bestArb.question,
         polymarket: bestArb.polymarket,
         kalshi: bestArb.kalshi,
@@ -239,7 +243,7 @@ async function runCycle() {
         category: bestArb.category,
       }, TOP_ARB_TTL)
     } else {
-      cacheSet(TOP_ARB_KEY, null, TOP_ARB_TTL)
+      await cacheSet(TOP_ARB_KEY, null, TOP_ARB_TTL)
     }
 
     // ── Scanner stats ───────────────────────────────
@@ -248,7 +252,7 @@ async function runCycle() {
     for (const m of visibleArbs) {
       totalEdge += (m.edge / 100) * parseVolume(m.volume)
     }
-    cacheSet(STATS_KEY, {
+    await cacheSet(STATS_KEY, {
       scanned: exploreMarkets.length,
       matchedCount: preFilterCount,
       arbCount: visibleArbs.length,

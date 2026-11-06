@@ -21,7 +21,7 @@ export async function GET(request) {
   ensureWorkerRunning()
 
   try {
-    const cached = cacheGetWithMeta(CACHE_KEY)
+    const cached = await cacheGetWithMeta(CACHE_KEY)
     const markets = cached.value || []
     const cacheAgeMs = cached.age
     const cacheTimestamp = cached.timestamp

@@ -10,7 +10,7 @@ export async function GET(request) {
   ensureWorkerRunning()
 
   try {
-    const cached = cacheGetWithMeta(WHALE_TRADES_KEY)
+    const cached = await cacheGetWithMeta(WHALE_TRADES_KEY)
     const trades = cached.value || []
 
     let filtered = trades

@@ -5,7 +5,7 @@ import { ensureWorkerRunning, COMPARE_KEY } from '../../../lib/scanner-worker'
 export async function GET() {
   ensureWorkerRunning()
 
-  const cached = cacheGetWithMeta(COMPARE_KEY)
+  const cached = await cacheGetWithMeta(COMPARE_KEY)
   const report = cached.value
 
   if (!report) {

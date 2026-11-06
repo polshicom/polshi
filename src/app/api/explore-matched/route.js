@@ -12,7 +12,7 @@ export async function GET(request) {
   ensureWorkerRunning()
 
   try {
-    const cached = cacheGetWithMeta(CACHE_KEY)
+    const cached = await cacheGetWithMeta(CACHE_KEY)
     const matches = cached.value || []
 
     let filtered = matches

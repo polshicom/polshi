@@ -5,7 +5,7 @@ import { ensureWorkerRunning, WHALE_YESTERDAY_KEY } from '../../../lib/scanner-w
 export async function GET() {
   ensureWorkerRunning()
 
-  const cached = cacheGetWithMeta(WHALE_YESTERDAY_KEY)
+  const cached = await cacheGetWithMeta(WHALE_YESTERDAY_KEY)
   const whale = cached.value ?? null
   const lastUpdated = cached.timestamp ? new Date(cached.timestamp).toISOString() : null
 

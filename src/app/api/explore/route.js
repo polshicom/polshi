@@ -15,7 +15,7 @@ export async function GET(request) {
 
   try {
     // Serve from worker cache — no external API calls
-    const cached = cacheGetWithMeta(EXPLORE_KEY)
+    const cached = await cacheGetWithMeta(EXPLORE_KEY)
     const markets = cached.value || []
 
     // Compute platform-level totals from ALL markets before filtering
