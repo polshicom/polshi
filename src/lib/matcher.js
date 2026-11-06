@@ -89,12 +89,6 @@ function overlapCoefficient(setA, setB) {
 
 // ── Kalshi Sub-market Gate ──────────────────────────
 
-function extractKalshiAnswer(question) {
-  const dashIdx = question.lastIndexOf(' - ')
-  if (dashIdx === -1 || dashIdx < 10) return null
-  return question.slice(dashIdx + 3).trim().toLowerCase()
-}
-
 function questionContainsAnswer(question, answer) {
   const qLower = question.toLowerCase()
   if (qLower.includes(answer)) return true
@@ -228,12 +222,19 @@ let matchStats = null
 
 function scorePair(pm, km, pmData, kmData) {
   const pmQ = pm.question || ''
-  const kmQ = km.question || ''
 
   if (matchStats) matchStats.pairsScored++
 
-  // Kalshi sub-market gate
-  const kAnswer = extractKalshiAnswer(kmQ)
+  // Kalshi sub-market gate — only applies when this market is a genuine
+  // named sub-outcome of a multi-candidate event. yesSubTitle is only
+  // ever set by kalshi.js when the event actually has multiple outcomes
+  // (see fetchKalshiMarkets' isMultiMarket check) — unlike guessing from
+  // "question text contains a dash," which also fires on single-outcome
+  // markets whose own natural title happens to contain one (e.g. "Fed
+  // Decision - December Meeting"), incorrectly gating them against a
+  // fragment of their own title. That false-positive was responsible for
+  // the gate rejecting 86% of all scored pairs.
+  const kAnswer = km.yesSubTitle ? km.yesSubTitle.toLowerCase() : null
   if (kAnswer && !questionContainsAnswer(pmQ, kAnswer)) {
     if (matchStats) matchStats.gateRejects++
     return { score: 0, reason: 'sub-market mismatch' }
