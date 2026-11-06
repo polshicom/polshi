@@ -20,21 +20,32 @@ const PERSIST_KEYS = new Set([
   'shadow_pipeline_last_run',
 ])
 
+// A slow/overloaded Supabase shouldn't be able to hang an entire API
+// route or scan cycle indefinitely — race every DB call against a timeout.
+const DB_TIMEOUT_MS = 6_000
+
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('Supabase call timed out')), ms)),
+  ])
+}
+
 async function loadFromDb(key) {
   try {
     const admin = getSupabaseAdmin()
-    const { data, error } = await admin
-      .from('scan_cache')
-      .select('value, created_at, expires_at')
-      .eq('key', key)
-      .maybeSingle()
+    const { data, error } = await withTimeout(
+      admin.from('scan_cache').select('value, created_at, expires_at').eq('key', key).maybeSingle(),
+      DB_TIMEOUT_MS
+    )
     if (error || !data) return null
     return {
       value: data.value,
       created: new Date(data.created_at).getTime(),
       expires: new Date(data.expires_at).getTime(),
     }
-  } catch {
+  } catch (err) {
+    console.error('[cache] Supabase read failed:', err.message)
     return null
   }
 }
@@ -42,12 +53,15 @@ async function loadFromDb(key) {
 async function saveToDb(key, entry) {
   try {
     const admin = getSupabaseAdmin()
-    await admin.from('scan_cache').upsert({
-      key,
-      value: entry.value,
-      created_at: new Date(entry.created).toISOString(),
-      expires_at: new Date(entry.expires).toISOString(),
-    })
+    await withTimeout(
+      admin.from('scan_cache').upsert({
+        key,
+        value: entry.value,
+        created_at: new Date(entry.created).toISOString(),
+        expires_at: new Date(entry.expires).toISOString(),
+      }),
+      DB_TIMEOUT_MS
+    )
   } catch (err) {
     console.error('[cache] Failed to persist to Supabase:', err.message)
   }
