@@ -36,6 +36,13 @@ const COMPARE_TTL = 300_000
 const REFRESH_INTERVAL = 30_000
 const SHADOW_PIPELINE_INTERVAL = 20 * 60_000 // run the GPT shadow comparison at most every 20 minutes
 
+// A "match" and an "arb opportunity" are different things — most matches
+// will have near-identical pricing with nothing worth trading. These
+// thresholds define what counts as a real, tradeable arb: both a
+// meaningful price gap and confidence that it's actually the same event.
+const ARB_MIN_EDGE = 2
+const ARB_MIN_CONFIDENCE = 45
+
 function formatVolume(vol) {
   if (vol >= 1_000_000) return `$${(vol / 1_000_000).toFixed(1)}M`
   if (vol >= 1_000) return `$${(vol / 1_000).toFixed(0)}K`
@@ -218,11 +225,17 @@ async function runCycle() {
       })
     }
 
-    // Keep all matched markets with any positive edge
+    // A "match" (same event, resolvable on both platforms) and an "arb
+    // opportunity" (a match with real tradeable price edge) are different
+    // things — this used to filter the whole cached match list down to
+    // edge>0 only, which meant the Matched Markets page could never show
+    // a match that happened to have identical/near-identical pricing.
+    // Keep every match here; downstream consumers (the arb scanner route)
+    // apply their own edge+confidence filter on top of this full list.
     const preEdgeFilter = markets.length
-    markets = markets.filter(m => m.edge != null && m.edge > 0)
+    markets = markets.filter(m => m.edge != null)
     const postEdgeFilter = markets.length
-    console.log(`[scanner-worker] Filter: pre=${preFilterCount} → matched=${preEdgeFilter} → edge>0=${postEdgeFilter}`)
+    console.log(`[scanner-worker] Filter: pre=${preFilterCount} → matched=${preEdgeFilter} → valid=${postEdgeFilter}`)
 
     markets = markets.map(m => {
       const { debug, ...rest } = m
@@ -235,8 +248,14 @@ async function runCycle() {
     // ── Cache for API (PRODUCTION) ───────────────────
     await cacheSet(CACHE_KEY, markets, CACHE_TTL)
 
+    // An arb opportunity needs both a meaningful price gap (1 cent is
+    // often just platform rounding/bid-ask noise, not real edge) and
+    // reasonable match confidence — otherwise we're recommending trades
+    // against matches we aren't actually sure are the same event.
+    const isRealArb = m => m.edge >= ARB_MIN_EDGE && m.matchConfidence >= ARB_MIN_CONFIDENCE
+
     // ── Top Arb ─────────────────────────────────────
-    const highConfArbs = markets.filter(m => m.edge > 0 && m.matchConfidence >= 40)
+    const highConfArbs = markets.filter(isRealArb)
     highConfArbs.sort((a, b) => b.edge - a.edge)
     const bestArb = highConfArbs[0] || null
     if (bestArb) {
@@ -260,7 +279,7 @@ async function runCycle() {
     }
 
     // ── Scanner stats ───────────────────────────────
-    const visibleArbs = markets.filter(m => m.edge > 0)
+    const visibleArbs = markets.filter(isRealArb)
     let totalEdge = 0
     for (const m of visibleArbs) {
       totalEdge += (m.edge / 100) * parseVolume(m.volume)
@@ -361,4 +380,4 @@ export async function triggerScan() {
   }
 }
 
-export { CACHE_KEY, TOP_ARB_KEY, EXPLORE_KEY, STATS_KEY, WHALE_YESTERDAY_KEY, WHALE_TRADES_KEY, COMPARE_KEY }
+export { CACHE_KEY, TOP_ARB_KEY, EXPLORE_KEY, STATS_KEY, WHALE_YESTERDAY_KEY, WHALE_TRADES_KEY, COMPARE_KEY, ARB_MIN_EDGE, ARB_MIN_CONFIDENCE }

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '../../../lib/auth'
 import { cacheGetWithMeta } from '../../../lib/cache'
-import { ensureWorkerRunning, CACHE_KEY, getLastTimings, isWarming } from '../../../lib/scanner-worker'
+import { ensureWorkerRunning, CACHE_KEY, getLastTimings, isWarming, ARB_MIN_EDGE, ARB_MIN_CONFIDENCE } from '../../../lib/scanner-worker'
 
 const FREE_MARKET_LIMIT = 5
 
@@ -22,10 +22,16 @@ export async function GET(request) {
 
   try {
     const cached = await cacheGetWithMeta(CACHE_KEY)
-    const markets = cached.value || []
+    const allMatches = cached.value || []
     const cacheAgeMs = cached.age
     const cacheTimestamp = cached.timestamp
     const isStale = cached.stale
+
+    // This route feeds the arbitrage scanner, not the full "matched
+    // markets" list — most matches have no meaningful price gap, so
+    // only show ones that are actually worth trading (real edge +
+    // enough confidence that it's genuinely the same event).
+    const markets = allMatches.filter(m => m.edge >= ARB_MIN_EDGE && m.matchConfidence >= ARB_MIN_CONFIDENCE)
 
     // Filter by confidence
     let filtered = markets
