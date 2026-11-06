@@ -9,7 +9,7 @@
  * Shadow pipeline (async, non-blocking): Fetch → blocker → GPT-4o mini → compare
  */
 
-import { cacheSet, cacheGetWithMeta } from './cache.js'
+import { cacheSet, cacheGet, cacheGetWithMeta } from './cache.js'
 import { fetchPolymarketMarkets } from './polymarket.js'
 import { fetchKalshiMarkets } from './kalshi.js'
 import { matchMarkets, categorize } from './matcher.js'
@@ -25,6 +25,7 @@ const STATS_KEY = 'scanner_stats'
 const WHALE_YESTERDAY_KEY = 'whale_yesterday'
 const WHALE_TRADES_KEY = 'whale_trades'
 const COMPARE_KEY = 'pipeline_comparison'
+const SHADOW_LAST_RUN_KEY = 'shadow_pipeline_last_run'
 const CACHE_TTL = 120_000
 const TOP_ARB_TTL = 900_000
 const EXPLORE_TTL = 120_000
@@ -33,6 +34,7 @@ const WHALE_YESTERDAY_TTL = 300_000
 const WHALE_TRADES_TTL = 60_000
 const COMPARE_TTL = 300_000
 const REFRESH_INTERVAL = 30_000
+const SHADOW_PIPELINE_INTERVAL = 20 * 60_000 // run the GPT shadow comparison at most every 20 minutes
 
 function formatVolume(vol) {
   if (vol >= 1_000_000) return `$${(vol / 1_000_000).toFixed(1)}M`
@@ -278,9 +280,20 @@ async function runCycle() {
     }
 
     // ── Shadow pipeline (async, non-blocking, never affects UI) ──
-    compareAndRecord(polymarkets, kalshiMarkets, markets)
-      .then(() => cacheSet(COMPARE_KEY, getComparisonReport(), COMPARE_TTL))
-      .catch(err => console.error('[scanner-worker] Shadow pipeline error:', err.message))
+    // Throttled: GPT verdicts are already cached per question-pair (see
+    // match-cache.js), so re-running every cron tick wouldn't call OpenAI
+    // again for unchanged pairs — but the blocker pass + cache lookups
+    // over the full candidate set still cost real time on every cycle.
+    // Only worth doing often enough to catch newly-listed markets.
+    const lastShadowRun = await cacheGet(SHADOW_LAST_RUN_KEY)
+    if (!lastShadowRun || Date.now() - lastShadowRun >= SHADOW_PIPELINE_INTERVAL) {
+      await cacheSet(SHADOW_LAST_RUN_KEY, Date.now(), SHADOW_PIPELINE_INTERVAL * 2)
+      compareAndRecord(polymarkets, kalshiMarkets, markets)
+        .then(() => cacheSet(COMPARE_KEY, getComparisonReport(), COMPARE_TTL))
+        .catch(err => console.error('[scanner-worker] Shadow pipeline error:', err.message))
+    } else {
+      console.log(`[scanner-worker] Shadow pipeline skipped (last run ${Math.round((Date.now() - lastShadowRun) / 60000)}min ago)`)
+    }
 
   } catch (err) {
     consecutiveErrors++

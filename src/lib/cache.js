@@ -17,6 +17,7 @@ const PERSIST_KEYS = new Set([
   'whale_yesterday',
   'whale_trades',
   'pipeline_comparison',
+  'shadow_pipeline_last_run',
 ])
 
 async function loadFromDb(key) {
