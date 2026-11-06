@@ -12,7 +12,7 @@
 import { cacheSet, cacheGet, cacheGetWithMeta } from './cache.js'
 import { fetchPolymarketMarkets } from './polymarket.js'
 import { fetchKalshiMarkets } from './kalshi.js'
-import { matchMarkets, categorize } from './matcher.js'
+import { matchMarkets, categorize, getLastMatchStats } from './matcher.js'
 import { aiVerifyMatches } from './ai-verify.js'
 import { sendDiscordAlert, formatMarketAlert } from './discord.js'
 import { fetchAllTrades } from './trades.js'
@@ -156,6 +156,19 @@ async function runCycle() {
     }
     exploreMarkets.sort((a, b) => b.volume - a.volume)
     await cacheSet(EXPLORE_KEY, exploreMarkets, EXPLORE_TTL)
+
+    // Diagnostic: category distribution per platform. The matcher only
+    // ever scores pairs within the same category bucket (plus a limited
+    // cross-category fallback for "Other"), so if the two platforms'
+    // independent categorize() calls disagree systematically on the same
+    // real-world events, that alone could be silently capping match
+    // count — no amount of scoring-signal tuning fixes a pair that's
+    // never compared in the first place.
+    const categoryBreakdown = {}
+    for (const m of exploreMarkets) {
+      if (!categoryBreakdown[m.category]) categoryBreakdown[m.category] = { poly: 0, kalshi: 0 }
+      categoryBreakdown[m.category][m.platform === 'polymarket' ? 'poly' : 'kalshi']++
+    }
 
     // ── Whale trades ── (awaited: cheap, and user-facing on the Whales
     // page — an unawaited promise here risks getting killed mid-write
@@ -303,6 +316,8 @@ async function runCycle() {
       preFilterCount,
       postEdgeFilter,
       finalMatches: markets.length,
+      categoryBreakdown,
+      matchStats: getLastMatchStats(),
       samplePoly: polymarkets.slice(0, 3).map(m => m.question),
       sampleKalshi: kalshiMarkets.slice(0, 3).map(m => m.question),
     }

@@ -220,13 +220,24 @@ function addEventGroupCandidates(polymarkets, kalshiMarkets, polyData, kalshiDat
 // ── Pair Scoring (multi-signal) ─────────────────────
 // Uses pre-computed keywords, bigrams, and fingerprints.
 
+// Diagnostic counters for a single matchMarkets() call — reset at the
+// start of each run, read back via getLastMatchStats(). Not meant to be
+// precise under concurrent calls; this module only ever runs one scan
+// cycle at a time per the scanner-worker's reentrancy guard.
+let matchStats = null
+
 function scorePair(pm, km, pmData, kmData) {
   const pmQ = pm.question || ''
   const kmQ = km.question || ''
 
+  if (matchStats) matchStats.pairsScored++
+
   // Kalshi sub-market gate
   const kAnswer = extractKalshiAnswer(kmQ)
-  if (kAnswer && !questionContainsAnswer(pmQ, kAnswer)) return { score: 0, reason: 'sub-market mismatch' }
+  if (kAnswer && !questionContainsAnswer(pmQ, kAnswer)) {
+    if (matchStats) matchStats.gateRejects++
+    return { score: 0, reason: 'sub-market mismatch' }
+  }
 
   const pmFp = pmData.fp
   const kmFp = kmData.fp
@@ -377,6 +388,10 @@ function scorePair(pm, km, pmData, kmData) {
 
   const textScore = unigramScore + bigramScore
   const finalScore = Math.max(0, Math.min(100, Math.round(textScore + bonus - penalty)))
+  if (matchStats) {
+    if (finalScore >= MATCH_THRESHOLD) matchStats.aboveThreshold++
+    else if (finalScore >= MATCH_THRESHOLD - 10) matchStats.nearMiss++
+  }
   return {
     score: finalScore,
     reason: `text=${textScore.toFixed(0)} +${bonus} -${penalty} [${reasons.join(', ')}]`,
@@ -447,7 +462,13 @@ function buildMatch(pm, km, score, reason, pmCategory, eventTitle) {
 
 const MATCH_THRESHOLD = 24
 
+export function getLastMatchStats() {
+  return matchStats
+}
+
 export function matchMarkets(polymarkets, kalshiMarkets) {
+  matchStats = { pairsScored: 0, gateRejects: 0, aboveThreshold: 0, nearMiss: 0 }
+
   // Step 1: Pre-compute fingerprints, keywords, bigrams, categories ONCE
   const polyData = polymarkets.map(m => precompute(m))
   const kalshiData = kalshiMarkets.map(m => precompute(m))
