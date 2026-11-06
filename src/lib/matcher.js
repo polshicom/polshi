@@ -285,12 +285,12 @@ function scorePair(pm, km, pmData, kmData) {
     if (pmFp.topic === kmFp.topic) { bonus += 8; reasons.push('same topic') }
     else { penalty += 5; reasons.push('diff topic') }
   } else if (pmHasTopic !== kmHasTopic) {
-    // One side has a classifiable topic (e.g. "bankruptcy") and the other
-    // doesn't (an oddly-phrased market like "Best LLM at the end of the
-    // decade?") — we can't confirm they're about the same thing, which is
-    // itself mild evidence they aren't. Without this, such pairs coasted
-    // through on unrelated signals like a shared resolution date.
-    penalty += 6
+    // One side has a classifiable topic and the other doesn't — real
+    // market phrasing varies a lot, so this alone is weak evidence of a
+    // mismatch, not strong. Keep it as a small tie-breaking nudge, not a
+    // gatekeeper, or it ends up rejecting lots of legitimate matches that
+    // simply don't fit the hand-written topic regexes on one side.
+    penalty += 2
     reasons.push('topic unclear on one side')
   }
 
@@ -308,11 +308,11 @@ function scorePair(pm, km, pmData, kmData) {
       bonus += 3
       reasons.push('similar action')
     } else {
-      penalty += 8
+      penalty += 4
       reasons.push('diff action')
     }
   } else if (pmHasAction !== kmHasAction) {
-    penalty += 4
+    penalty += 1
     reasons.push('action unclear on one side')
   }
 
@@ -370,8 +370,8 @@ function scorePair(pm, km, pmData, kmData) {
       if (diffDays <= 2) { bonus += 18; reasons.push('same end date') }
       else if (diffDays <= 7) { bonus += 10; reasons.push('close end date') }
       else if (diffDays <= 21) { bonus += 2; reasons.push('plausible end date') }
-      else if (diffDays <= 45) { penalty += 12; reasons.push('different end dates') }
-      else { penalty += 35; reasons.push('far end dates') }
+      else if (diffDays <= 45) { penalty += 8; reasons.push('different end dates') }
+      else { penalty += 22; reasons.push('far end dates') }
     }
   }
 
@@ -445,7 +445,7 @@ function buildMatch(pm, km, score, reason, pmCategory, eventTitle) {
 
 // ── Main Matching ────────────────────────────────────
 
-const MATCH_THRESHOLD = 28
+const MATCH_THRESHOLD = 24
 
 export function matchMarkets(polymarkets, kalshiMarkets) {
   // Step 1: Pre-compute fingerprints, keywords, bigrams, categories ONCE
