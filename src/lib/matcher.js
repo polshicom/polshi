@@ -326,15 +326,25 @@ function scorePair(pm, km, pmData, kmData) {
     reasons.push('polarity mismatch')
   }
 
-  // Signal 11: End date proximity
+  // Signal 11: End date proximity — one of the strongest disambiguating
+  // signals we have. Platforms round resolution deadlines differently
+  // (Kalshi's close_time vs Polymarket's endDate can land a day or two
+  // apart for the literal same event), so close-but-not-identical dates
+  // are treated as strong confirmation, not a strict requirement. But two
+  // markets with genuinely distant end dates are very rarely the same
+  // event — e.g. a NZ election and a UK election can both involve a
+  // "Labour Party" and superficially similar text, but their resolution
+  // dates are months apart, which should weigh heavily against the match.
   if (pm.endDate && km.endDate) {
     const pmDate = new Date(pm.endDate)
     const kmDate = new Date(km.endDate)
     if (!isNaN(pmDate) && !isNaN(kmDate)) {
       const diffDays = Math.abs(pmDate - kmDate) / (1000 * 60 * 60 * 24)
-      if (diffDays <= 3) { bonus += 10; reasons.push('same end date') }
-      else if (diffDays <= 14) { bonus += 5; reasons.push('close end date') }
-      else if (diffDays > 60) { penalty += 8; reasons.push('far end dates') }
+      if (diffDays <= 2) { bonus += 18; reasons.push('same end date') }
+      else if (diffDays <= 7) { bonus += 10; reasons.push('close end date') }
+      else if (diffDays <= 21) { bonus += 2; reasons.push('plausible end date') }
+      else if (diffDays <= 45) { penalty += 12; reasons.push('different end dates') }
+      else { penalty += 35; reasons.push('far end dates') }
     }
   }
 
