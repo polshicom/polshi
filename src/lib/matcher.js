@@ -191,7 +191,7 @@ function addEventGroupCandidates(polymarkets, kalshiMarkets, polyData, kalshiDat
   for (const { pe, ke } of matchedEventPairs) {
     for (const pi of pe.idxs) {
       for (const ki of ke.idxs) {
-        const result = scorePair(polymarkets[pi], kalshiMarkets[ki], polyData[pi], kalshiData[ki])
+        const result = scorePair(polymarkets[pi], kalshiMarkets[ki], polyData[pi], kalshiData[ki], true)
         const boosted = Math.min(100, result.score + EVENT_CONTEXT_BONUS)
         if (boosted < MATCH_THRESHOLD) continue
         const key = `${pi}:${ki}`
@@ -220,7 +220,7 @@ function addEventGroupCandidates(polymarkets, kalshiMarkets, polyData, kalshiDat
 // cycle at a time per the scanner-worker's reentrancy guard.
 let matchStats = null
 
-function scorePair(pm, km, pmData, kmData) {
+function scorePair(pm, km, pmData, kmData, eventConfirmed = false) {
   const pmQ = pm.question || ''
 
   if (matchStats) matchStats.pairsScored++
@@ -232,16 +232,36 @@ function scorePair(pm, km, pmData, kmData) {
   // "question text contains a dash," which also fires on single-outcome
   // markets whose own natural title happens to contain one (e.g. "Fed
   // Decision - December Meeting"), incorrectly gating them against a
-  // fragment of their own title. That false-positive was responsible for
-  // the gate rejecting 86% of all scored pairs.
+  // fragment of their own title.
   const kAnswer = km.yesSubTitle ? km.yesSubTitle.toLowerCase() : null
-  if (kAnswer && !questionContainsAnswer(pmQ, kAnswer)) {
+
+  // Some genuine multi-outcome events have *date ranges* as their
+  // outcomes, not named candidates (Kalshi "timing" markets: "Next
+  // pandemic - Before 2028", "S&P 500 above $10,000? - Before Dec 31").
+  // yesSubTitle is real here, but text-containment is useless as a gate
+  // for it — nearly any Polymarket question with the same deadline
+  // contains the word "before" and the year, regardless of topic. These
+  // need topic/entity agreement instead of a text check.
+  const isDateRangeAnswer = kAnswer && /^(before|after|by|in|through|until)\s+([a-z]+\s+)?\d{4}$|^\d{4}([\s-]+\d{4})?$|^never$/.test(kAnswer.trim())
+
+  if (kAnswer && !isDateRangeAnswer && !questionContainsAnswer(pmQ, kAnswer)) {
     if (matchStats) matchStats.gateRejects++
     return { score: 0, reason: 'sub-market mismatch' }
   }
 
   const pmFp = pmData.fp
   const kmFp = kmData.fp
+
+  if (isDateRangeAnswer) {
+    const sharesTopic = pmFp.topic && kmFp.topic && pmFp.topic !== 'generic_unknown' && pmFp.topic === kmFp.topic
+    const pmEnt = new Set((pmFp.allEntities || []).map(e => e.toLowerCase()))
+    const kmEnt = new Set((kmFp.allEntities || []).map(e => e.toLowerCase()))
+    const sharesEntity = [...pmEnt].some(e => kmEnt.has(e))
+    if (!sharesTopic && !sharesEntity) {
+      if (matchStats) matchStats.gateRejects++
+      return { score: 0, reason: 'sub-market mismatch (date-range outcome, no topic/entity overlap)' }
+    }
+  }
 
   // Signal 1: Keyword similarity (unigrams)
   const jaccard = jaccardSimilarity(pmData.keywords, kmData.keywords)
@@ -297,12 +317,11 @@ function scorePair(pm, km, pmData, kmData) {
     if (pmFp.topic === kmFp.topic) { bonus += 8; reasons.push('same topic') }
     else { penalty += 5; reasons.push('diff topic') }
   } else if (pmHasTopic !== kmHasTopic) {
-    // One side has a classifiable topic and the other doesn't — real
-    // market phrasing varies a lot, so this alone is weak evidence of a
-    // mismatch, not strong. Keep it as a small tie-breaking nudge, not a
-    // gatekeeper, or it ends up rejecting lots of legitimate matches that
-    // simply don't fit the hand-written topic regexes on one side.
-    penalty += 2
+    // One side has a classifiable topic and the other doesn't — weak
+    // evidence on its own, but the sub-market gate and category bucketing
+    // fixes already took care of the real recall bottleneck, so this can
+    // afford to pull its own weight again instead of being nearly inert.
+    penalty += 5
     reasons.push('topic unclear on one side')
   }
 
@@ -320,11 +339,11 @@ function scorePair(pm, km, pmData, kmData) {
       bonus += 3
       reasons.push('similar action')
     } else {
-      penalty += 4
+      penalty += 6
       reasons.push('diff action')
     }
   } else if (pmHasAction !== kmHasAction) {
-    penalty += 1
+    penalty += 2
     reasons.push('action unclear on one side')
   }
 
@@ -382,8 +401,18 @@ function scorePair(pm, km, pmData, kmData) {
       if (diffDays <= 2) { bonus += 18; reasons.push('same end date') }
       else if (diffDays <= 7) { bonus += 10; reasons.push('close end date') }
       else if (diffDays <= 21) { bonus += 2; reasons.push('plausible end date') }
-      else if (diffDays <= 45) { penalty += 8; reasons.push('different end dates') }
-      else { penalty += 22; reasons.push('far end dates') }
+      else if (!eventConfirmed) {
+        // A date mismatch is weak evidence once the event-group matcher
+        // has already confirmed the surrounding context (e.g. these are
+        // two candidates in the same "who succeeds Netanyahu" event) —
+        // platforms often set different placeholder deadlines for
+        // open-ended "who will be next X" markets. Only penalize date
+        // drift for pairs found via the raw cross product, where it's
+        // one of the few signals available to catch things like a NZ
+        // election superficially matching a UK election.
+        if (diffDays <= 45) { penalty += 10; reasons.push('different end dates') }
+        else { penalty += 30; reasons.push('far end dates') }
+      }
     }
   }
 
