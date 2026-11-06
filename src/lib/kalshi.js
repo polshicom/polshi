@@ -123,7 +123,13 @@ export async function fetchKalshiMarkets() {
           category: event.category || '',
           endDate: mkt.close_time || mkt.expiration_time || null,
           description: mkt.rules_primary || '',
-          yesSubTitle: subTitle,
+          // Only a genuine multi-candidate suffix when isMultiMarket —
+          // Kalshi's API populates yes_sub_title even for single-outcome
+          // markets (e.g. "Before 2050", "Mars"), which aren't a specific
+          // "answer" to gate matching against, just generic subject/
+          // threshold labels already captured by the other fingerprint
+          // signals (topic, numeric target, dates).
+          yesSubTitle: isMultiMarket ? subTitle : null,
           url,
           source: 'kalshi',
           // Event grouping — lets the matcher match multi-outcome events
