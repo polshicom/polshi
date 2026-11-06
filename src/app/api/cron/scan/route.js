@@ -3,9 +3,10 @@ import { triggerScan } from '../../../../lib/scanner-worker'
 
 // Give Vercel's serverless function a real execution budget — full
 // market coverage (fetch + match + verify) takes longer than the
-// platform default. Pro allows up to 300s; 120s leaves comfortable
-// margin over the typical cycle time without eating into that cap.
-export const maxDuration = 120
+// platform default. The matcher now scores a full cross product
+// (~28M pairs, up from ~14M) instead of category-bucketed pairs, so
+// bumped from 120s toward Pro's 300s cap for extra margin.
+export const maxDuration = 200
 
 // Scans must be driven by an awaited request with its own execution
 // budget — not by a fire-and-forget call inside a page-load API route,
