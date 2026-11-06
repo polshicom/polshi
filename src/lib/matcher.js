@@ -9,6 +9,7 @@
  */
 
 import { categorize, buildFingerprint } from './fingerprint.js'
+import { generateCandidates } from './blocker.js'
 
 // ── Helpers ──────────────────────────────────────────
 
@@ -503,16 +504,24 @@ export function matchMarkets(polymarkets, kalshiMarkets) {
   const polyData = polymarkets.map(m => precompute(m))
   const kalshiData = kalshiMarkets.map(m => precompute(m))
 
-  // Step 2/3: Score every poly×kalshi pair. Categories are informational
-  // (shown in the UI, used by the event-group phase) but NOT a gate on
-  // which pairs get compared — Polymarket and Kalshi each run categorize()
+  // Step 2/3: Score candidate pairs. Categories are informational (shown
+  // in the UI, used by the event-group phase) but NOT a gate on which
+  // pairs get compared — Polymarket and Kalshi each run categorize()
   // independently on differently-phrased text, so the same real-world
-  // event can land in different buckets on each side. Bucketing by
-  // category would mean that pair is never even scored, which no amount
-  // of signal tuning can fix. The actual disambiguation work (entity,
-  // topic, date, numeric target) already lives in scorePair, so a full
-  // cross product lets those signals do their job on every pair instead
-  // of pre-filtering some of them out before they get a chance.
+  // event can land in different buckets on each side; bucketing by
+  // category silently excludes those pairs from ever being scored.
+  //
+  // A true full cross product (every poly × every kalshi) found this
+  // correctly but doesn't fit a serverless function's time budget once
+  // Kalshi's fetch covers its real ~22,700-event universe (~47M pairs,
+  // 280s+ and climbing). generateCandidates() (blocker.js, already used
+  // by the shadow pipeline) does the same job as a proper indexed
+  // pre-filter instead of a naive O(n×m) loop — token overlap, a
+  // proper-noun inverted index, and numeric/date proximity, ORed
+  // together — cutting candidates from tens of millions to the
+  // thousands while still not restricting by category.
+  const candidates0 = generateCandidates(polymarkets, kalshiMarkets)
+
   const catCounts = {}
   for (const d of polyData) {
     if (!catCounts[d.category]) catCounts[d.category] = { poly: 0, kalshi: 0 }
@@ -526,13 +535,11 @@ export function matchMarkets(polymarkets, kalshiMarkets) {
 
   const candidateMap = new Map()
 
-  for (let pi = 0; pi < polymarkets.length; pi++) {
-    for (let ki = 0; ki < kalshiMarkets.length; ki++) {
-      const result = scorePair(polymarkets[pi], kalshiMarkets[ki], polyData[pi], kalshiData[ki])
-      if (result.score >= MATCH_THRESHOLD) {
-        const key = `${pi}:${ki}`
-        candidateMap.set(key, { pmIdx: pi, kIdx: ki, score: result.score, reason: result.reason, cat: polyData[pi].category })
-      }
+  for (const { pi, ki } of candidates0) {
+    const result = scorePair(polymarkets[pi], kalshiMarkets[ki], polyData[pi], kalshiData[ki])
+    if (result.score >= MATCH_THRESHOLD) {
+      const key = `${pi}:${ki}`
+      candidateMap.set(key, { pmIdx: pi, kIdx: ki, score: result.score, reason: result.reason, cat: polyData[pi].category })
     }
   }
 

@@ -155,10 +155,10 @@ export async function fetchKalshiMarkets() {
     cursor = data.cursor
     if (!cursor || events.length < 200) break
 
-    // Small courtesy delay between pages — 30 sequential requests back to
-    // back is enough to trip Kalshi's rate limit under load. We have a
-    // generous time budget (the cron route's maxDuration), so this is cheap.
-    await new Promise(r => setTimeout(r, 150))
+    // Small courtesy delay between pages — avoids tripping Kalshi's rate
+    // limit under load. Now pulling 130 pages instead of 30, so trimmed
+    // from 150ms to keep total fetch time from eating into the budget.
+    await new Promise(r => setTimeout(r, 60))
   }
 
   return allMarkets
