@@ -9,7 +9,6 @@
  */
 
 import { categorize, buildFingerprint } from './fingerprint.js'
-import { generateCandidates } from './blocker.js'
 
 // ── Helpers ──────────────────────────────────────────
 
@@ -106,6 +105,68 @@ function precompute(market) {
     fp: buildFingerprint(market),
     category: categorize(market.question),
   }
+}
+
+// ── Indexed Candidate Generation ─────────────────────
+// blocker.js's generateCandidates() is fine at the scale the shadow
+// pipeline was built for, but its Pass 1/3 are still O(n×m) loops —
+// cheap per-iteration, but that stops mattering once Kalshi's real
+// individual-market count (accounting for dense "ladder" events like
+// CPI threshold series, each expanding into a dozen+ sub-markets)
+// reaches ~190,000. 2,000 × 190,000 is ~380M iterations even at a few
+// cheap ops each, enough to blow a serverless time/memory budget. This
+// builds actual inverted indices (keyword → markets, entity → markets)
+// so lookup cost scales with how many markets share a term, not with
+// the full size of both platforms' combined market universe.
+function buildIndexedCandidates(polyData, kalshiData) {
+  const kalshiByKeyword = new Map()
+  const kalshiByEntity = new Map()
+
+  for (let ki = 0; ki < kalshiData.length; ki++) {
+    const d = kalshiData[ki]
+    for (const kw of d.keywords) {
+      if (!kalshiByKeyword.has(kw)) kalshiByKeyword.set(kw, [])
+      kalshiByKeyword.get(kw).push(ki)
+    }
+    for (const ent of (d.fp.allEntities || [])) {
+      const key = ent.toLowerCase()
+      if (!kalshiByEntity.has(key)) kalshiByEntity.set(key, [])
+      kalshiByEntity.get(key).push(ki)
+    }
+  }
+
+  // A keyword shared by too many Kalshi markets isn't a useful signal —
+  // it just means the term is common within this market universe (e.g.
+  // "election", "championship"), not that it meaningfully narrows
+  // anything down. Skip those rather than let them flood every
+  // Polymarket market with thousands of low-value candidates.
+  const MAX_KEYWORD_FANOUT = 400
+
+  const candidatePairs = new Map()
+
+  for (let pi = 0; pi < polyData.length; pi++) {
+    const d = polyData[pi]
+    const candidateKis = new Set()
+
+    for (const ent of (d.fp.allEntities || [])) {
+      const matches = kalshiByEntity.get(ent.toLowerCase())
+      if (matches) for (const ki of matches) candidateKis.add(ki)
+    }
+
+    for (const kw of d.keywords) {
+      if (kw.length < 4) continue
+      const matches = kalshiByKeyword.get(kw)
+      if (matches && matches.length <= MAX_KEYWORD_FANOUT) {
+        for (const ki of matches) candidateKis.add(ki)
+      }
+    }
+
+    for (const ki of candidateKis) {
+      candidatePairs.set(`${pi}:${ki}`, { pi, ki })
+    }
+  }
+
+  return [...candidatePairs.values()]
 }
 
 // ── Event-Group Matching ─────────────────────────────
@@ -512,15 +573,14 @@ export function matchMarkets(polymarkets, kalshiMarkets) {
   // category silently excludes those pairs from ever being scored.
   //
   // A true full cross product (every poly × every kalshi) found this
-  // correctly but doesn't fit a serverless function's time budget once
-  // Kalshi's fetch covers its real ~22,700-event universe (~47M pairs,
-  // 280s+ and climbing). generateCandidates() (blocker.js, already used
-  // by the shadow pipeline) does the same job as a proper indexed
-  // pre-filter instead of a naive O(n×m) loop — token overlap, a
-  // proper-noun inverted index, and numeric/date proximity, ORed
-  // together — cutting candidates from tens of millions to the
-  // thousands while still not restricting by category.
-  const candidates0 = generateCandidates(polymarkets, kalshiMarkets)
+  // correctly but doesn't fit a serverless function's time budget —
+  // Kalshi's real individual-market count (accounting for dense
+  // "ladder" events like CPI threshold series) is ~190,000, not the
+  // ~22,700 events that contain them. buildIndexedCandidates() uses
+  // actual inverted indices (keyword/entity → markets) so lookup cost
+  // scales with how many markets share a term, not with the full
+  // combined size of both platforms.
+  const candidates0 = buildIndexedCandidates(polyData, kalshiData)
 
   const catCounts = {}
   for (const d of polyData) {
